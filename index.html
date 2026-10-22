@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f5f2">
+  <meta name="theme-color" content="#0d1411">
   <title>EFFICIENT SIGN — PDF signing, made simple</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -234,6 +234,7 @@
       .stage { min-height: 320px; }
     }
   </style>
+  <link rel="stylesheet" href="theme.css">
 </head>
 <body>
   <div class="app-shell">
@@ -256,7 +257,7 @@
       <section class="intro">
         <div>
           <div class="eyebrow">A simpler way to sign</div>
-          <h1>Make it official.</h1>
+          <h1 id="welcomeHeading">Welcome.</h1>
           <p>Add your signature to a PDF in just a few steps.</p>
         </div>
       </section>
@@ -557,6 +558,9 @@
         const hasAccountEmail = Boolean(user?.email);
         const signerName = getSignerName(user);
         const hasSignerName = Boolean(signerName);
+        $("welcomeHeading").textContent = user && signerName
+          ? `Welcome, ${signerName}.`
+          : "Welcome.";
         if (userChanged) {
           clearSignatureDraft();
           activeSigningRequest = null;
