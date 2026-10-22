@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f2">
+  <title>Sign in — Signwell</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1e2723;
+      --muted: #707974;
+      --line: #e6e8e3;
+      --green: #245c45;
+      --green-dark: #194a36;
+      --canvas: #f1f2ef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      padding: 24px;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "DM Sans", sans-serif;
+    }
+    button, input { font: inherit; }
+    .login-shell { width: min(420px, 100%); }
+    .brand { display: flex; align-items: center; justify-content: center; gap: 11px; margin-bottom: 24px; font-weight: 700; letter-spacing: -.5px; }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--green);
+      color: white;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 21px;
+      font-style: italic;
+    }
+    .brand-name { font-size: 18px; }
+    .card { padding: 30px; border: 1px solid var(--line); border-radius: 17px; background: white; box-shadow: 0 16px 42px rgba(31, 43, 36, .11); }
+    h1 { margin: 0 0 8px; font-family: "Playfair Display", Georgia, serif; font-size: 32px; font-weight: 500; letter-spacing: -.7px; }
+    .intro, .message { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .intro { margin: 0 0 22px; }
+    .message { min-height: 21px; margin: 0 0 14px; overflow-wrap: anywhere; }
+    label { display: block; margin: 14px 0 6px; color: #59645d; font-size: 11px; font-weight: 600; }
+    input {
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      border: 1px solid #dfe3dd;
+      border-radius: 8px;
+      outline: none;
+      font-size: 13px;
+    }
+    input:focus { border-color: #84a993; box-shadow: 0 0 0 3px rgba(36, 92, 69, .08); }
+    .primary-button {
+      width: 100%;
+      min-height: 43px;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--green);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary-button:hover { background: var(--green-dark); }
+    .primary-button:disabled { opacity: .55; cursor: wait; }
+    .switch-button { width: 100%; margin-top: 14px; padding: 6px; border: 0; background: transparent; color: var(--green); font-size: 11px; cursor: pointer; }
+    .switch-button:hover { text-decoration: underline; }
+    .back-link { display: block; margin-top: 20px; color: var(--muted); text-align: center; text-decoration: none; font-size: 11px; }
+    .back-link:hover { color: var(--green); }
+    @media (max-width: 480px) { .card { padding: 24px 20px; } }
+  </style>
+</head>
+<body>
+  <main class="login-shell">
+    <div class="brand" aria-label="Signwell">
+      <span class="brand-mark">s</span>
+      <span class="brand-name">signwell</span>
+    </div>
+    <section class="card" aria-labelledby="heading">
+      <h1 id="heading">Welcome back.</h1>
+      <p id="intro" class="intro">Sign in to create and place your signature.</p>
+      <p id="message" class="message" role="status" aria-live="polite"></p>
+      <form id="authForm">
+        <label for="email">Email address</label>
+        <input id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="Password" required>
+        <button id="submitButton" class="primary-button" type="submit">Sign in</button>
+      </form>
+      <button id="switchButton" class="switch-button" type="button">New here? Create an account</button>
+      <a class="back-link" href="index.html">Back to PDF signing</a>
+    </section>
+  </main>
+  <script>
+    (() => {
+      "use strict";
+
+      const SUPABASE_URL = "https://mvfnycefnmpwtuoajliq.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_-_KnKaBRJLvTl2VLfNWTXA_FFpZvqcr";
+      const form = document.getElementById("authForm");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+      const submitButton = document.getElementById("submitButton");
+      const switchButton = document.getElementById("switchButton");
+      const heading = document.getElementById("heading");
+      const intro = document.getElementById("intro");
+      const message = document.getElementById("message");
+      let isSignUpMode = false;
+      let authClient = null;
+
+      function setMessage(text) {
+        message.textContent = text;
+      }
+
+      function setMode(isSignUp) {
+        isSignUpMode = isSignUp;
+        heading.textContent = isSignUp ? "Create your account." : "Welcome back.";
+        intro.textContent = isSignUp
+          ? "Create an account to add your signature to PDFs."
+          : "Sign in to create and place your signature.";
+        submitButton.textContent = isSignUp ? "Create account" : "Sign in";
+        passwordInput.autocomplete = isSignUp ? "new-password" : "current-password";
+        passwordInput.placeholder = isSignUp ? "At least 8 characters" : "Password";
+        passwordInput.minLength = isSignUp ? 8 : 1;
+        switchButton.textContent = isSignUp
+          ? "Already have an account? Sign in"
+          : "New here? Create an account";
+      }
+
+      async function handleSubmit(event) {
+        event.preventDefault();
+        if (!authClient) {
+          setMessage("Authentication is unavailable. Check your internet connection and refresh.");
+          return;
+        }
+
+        submitButton.disabled = true;
+        setMessage(isSignUpMode ? "Creating your account…" : "Signing in…");
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        try {
+          const result = isSignUpMode
+            ? await authClient.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: new URL("index.html", window.location.href).href }
+            })
+            : await authClient.auth.signInWithPassword({ email, password });
+          if (result.error) throw result.error;
+
+          passwordInput.value = "";
+          if (isSignUpMode && !result.data.session) {
+            setMessage(`Check ${email} and confirm your email before signing in.`);
+            return;
+          }
+          if (!result.data.user?.email_confirmed_at) {
+            setMessage(`Confirm the email sent to ${email} before signing.`);
+            return;
+          }
+          window.location.replace("index.html");
+        } catch (error) {
+          console.error("Supabase authentication failed:", error);
+          setMessage(error.message || "Authentication failed. Please try again.");
+        } finally {
+          submitButton.disabled = false;
+        }
+      }
+
+      switchButton.addEventListener("click", () => {
+        setMode(!isSignUpMode);
+        setMessage("");
+      });
+      form.addEventListener("submit", handleSubmit);
+      setMode(false);
+
+      if (typeof window.supabase?.createClient !== "function") {
+        form.hidden = true;
+        switchButton.hidden = true;
+        setMessage("Supabase couldn't load. Check your internet connection and refresh.");
+        return;
+      }
+
+      authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      authClient.auth.getSession().then(({ data, error }) => {
+        if (error) throw error;
+        if (data.session?.user) window.location.replace("index.html");
+      }).catch((error) => {
+        console.error("Supabase session restore failed:", error);
+        setMessage("Couldn't check your session. Please try again.");
+      });
+    })();
+  </script>
+</body>
+</html>

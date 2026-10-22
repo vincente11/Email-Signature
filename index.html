@@ -76,6 +76,7 @@
     .auth-field:focus { border-color: #84a993; box-shadow: 0 0 0 3px rgba(36, 92, 69, .08); }
     .auth-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 9px; }
     .auth-submit { height: 37px; font-size: 11px; }
+    .auth-link { display: flex; align-items: center; justify-content: center; text-decoration: none; }
     .auth-switch { border: 0; background: transparent; color: var(--green); font-size: 10px; cursor: pointer; }
     .auth-switch:hover { text-decoration: underline; }
     .auth-submit:disabled, .auth-switch:disabled { opacity: .5; cursor: not-allowed; }
@@ -204,15 +205,8 @@
         <aside class="sidebar">
           <section class="auth-card" aria-labelledby="authHeading">
             <h2 id="authHeading" class="auth-heading">Your signer account</h2>
-            <p id="authMessage" class="auth-message" role="status">Configure your Supabase project to enable sign-in.</p>
-            <form id="authForm" hidden>
-              <input id="authEmail" class="auth-field" type="email" autocomplete="email" maxlength="254" placeholder="Email address" aria-label="Account email" required>
-              <input id="authPassword" class="auth-field" type="password" autocomplete="new-password" minlength="8" placeholder="Password (8+ characters)" aria-label="Account password" required>
-              <div class="auth-actions">
-                <button id="authSubmit" class="primary-button auth-submit" type="submit">Create account</button>
-                <button id="authSwitch" class="auth-switch" type="button">Already have an account? Sign in</button>
-              </div>
-            </form>
+            <p id="authMessage" class="auth-message" role="status">Checking your account…</p>
+            <a id="authLink" class="primary-button auth-submit auth-link" href="login.html">Sign in or create account</a>
             <button id="authSignOut" class="primary-button auth-submit" type="button" hidden>Sign out</button>
           </section>
           <div class="step-label">Step 01</div>
@@ -259,10 +253,6 @@
             </div>
           </div>
           <div class="signature-details">
-            <label>
-              <span class="detail-label">Company name <span aria-hidden="true">*</span></span>
-              <input id="companyName" class="typed-input" type="text" maxlength="80" autocomplete="organization" placeholder="Enter your company name" required aria-label="Company name">
-            </label>
             <label>
               <span class="detail-label">Date signed</span>
               <input id="signedDate" class="typed-input" type="text" value="Set when placed" readonly aria-label="Date signed">
@@ -347,15 +337,12 @@
       const PDFJS_VERSION = "3.11.174";
       const SUPABASE_URL = "https://mvfnycefnmpwtuoajliq.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_-_KnKaBRJLvTl2VLfNWTXA_FFpZvqcr";
+      const companyLogo = new Image();
       const $ = (id) => document.getElementById(id);
 
       const els = {
         authMessage: $("authMessage"),
-        authForm: $("authForm"),
-        authEmail: $("authEmail"),
-        authPassword: $("authPassword"),
-        authSubmit: $("authSubmit"),
-        authSwitch: $("authSwitch"),
+        authLink: $("authLink"),
         authSignOut: $("authSignOut"),
         choosePdf: $("choosePdf"),
         emptyUpload: $("emptyUpload"),
@@ -373,7 +360,6 @@
         drawHint: $("drawHint"),
         clearDraw: $("clearDraw"),
         typedName: $("typedName"),
-        companyName: $("companyName"),
         signedDate: $("signedDate"),
         signatureAuthHint: $("signatureAuthHint"),
         fontOptions: document.querySelectorAll(".font-option"),
@@ -412,7 +398,6 @@
       let signedAt = new Date();
       let authClient = null;
       let authUser = null;
-      let isSignUpMode = true;
       let hasDrawn = false;
       let isDrawing = false;
       let stampPlacement = null;
@@ -455,8 +440,7 @@
             throw new Error("The Supabase project URL must use HTTPS.");
           }
           authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-          els.authForm.hidden = false;
-          els.authMessage.textContent = "Sign in or create an account. Email confirmation is required before signing.";
+          els.authMessage.textContent = "Checking your account…";
           setAuthUser(null);
           authClient.auth.onAuthStateChange((_event, session) => {
             setAuthUser(session?.user || null);
@@ -482,7 +466,6 @@
         hasDrawn = false;
         els.drawHint.hidden = false;
         els.typedName.value = "";
-        els.companyName.value = "";
         signedAt = new Date();
         els.signedDate.value = "Set when placed";
         signatureDataUrl = null;
@@ -499,17 +482,13 @@
         const emailConfirmed = Boolean(user?.email && user.email_confirmed_at);
         if (userChanged) clearSignatureDraft();
 
-        els.authForm.hidden = !authClient || Boolean(user);
+        els.authLink.hidden = Boolean(user);
         els.authSignOut.hidden = !user;
-        els.authEmail.disabled = !authClient;
-        els.authPassword.disabled = !authClient;
-        els.authSubmit.disabled = !authClient;
-        els.authSwitch.disabled = !authClient;
 
         if (!user) {
           els.authMessage.textContent = authClient
-            ? "Sign in or create an account. Email confirmation is required before signing."
-            : "Set SUPABASE_URL and SUPABASE_ANON_KEY in this file to enable accounts.";
+            ? "Sign in with a confirmed email to create your signature."
+            : "Set SUPABASE_URL and SUPABASE_ANON_KEY to enable accounts.";
         } else if (emailConfirmed) {
           els.authMessage.textContent = `Signed in as ${user.email}. Your verified email will be included in the signature.`;
         } else {
@@ -524,60 +503,12 @@
         els.drawCanvas.style.opacity = canSign ? "1" : ".45";
         els.clearDraw.disabled = !canSign;
         els.typedName.disabled = !canSign;
-        els.companyName.disabled = !canSign;
         els.fontOptions.forEach((option) => { option.disabled = !canSign; });
         if (!canSign) {
           els.downloadButton.disabled = true;
           resetPlacement();
         } else {
           syncSignature();
-        }
-      }
-
-      function setAuthMode(isSignUp) {
-        isSignUpMode = isSignUp;
-        els.authSubmit.textContent = isSignUp ? "Create account" : "Sign in";
-        els.authPassword.autocomplete = isSignUp ? "new-password" : "current-password";
-        els.authPassword.placeholder = isSignUp ? "Password (8+ characters)" : "Password";
-        els.authPassword.minLength = isSignUp ? 8 : 1;
-        els.authSwitch.textContent = isSignUp
-          ? "Already have an account? Sign in"
-          : "New here? Create an account";
-      }
-
-      async function submitAuth(event) {
-        event.preventDefault();
-        if (!authClient) {
-          showToast("Configure your Supabase project before signing in.");
-          return;
-        }
-        els.authSubmit.disabled = true;
-        const email = els.authEmail.value.trim();
-        const password = els.authPassword.value;
-        try {
-          const result = isSignUpMode
-            ? await authClient.auth.signUp({
-              email,
-              password,
-              options: { emailRedirectTo: window.location.href }
-            })
-            : await authClient.auth.signInWithPassword({ email, password });
-          if (result.error) throw result.error;
-          els.authPassword.value = "";
-          if (isSignUpMode && !result.data.session) {
-            els.authMessage.textContent = `Check ${email} and confirm your email to enable signing.`;
-          } else {
-            setAuthUser(result.data.user);
-            if (!result.data.user?.email_confirmed_at) {
-              showToast("Confirm your email before creating or downloading a signature.");
-            }
-          }
-        } catch (error) {
-          console.error("Supabase authentication failed:", error);
-          els.authMessage.textContent = error.message || "Sign-in failed. Please try again.";
-          showToast(error.message || "Sign-in failed. Please try again.");
-        } finally {
-          els.authSubmit.disabled = !authClient;
         }
       }
 
@@ -803,11 +734,6 @@
           showToast("Sign in with a confirmed email before placing your signature.");
           return;
         }
-        if (!els.companyName.value.trim()) {
-          showToast("Enter your company name before placing your signature.");
-          els.companyName.focus();
-          return;
-        }
         if (!signatureDataUrl || !pdfDocument) {
           showToast("Create a signature first, then click on the document to place it.");
           return;
@@ -1001,15 +927,15 @@
         return canvas;
       }
 
-      function composeSignature(markCanvas, companyName, signerEmail, date) {
+      function composeSignature(markCanvas, signerEmail, date) {
         const scale = 2;
         const signatureHeight = 62;
         const markAspectRatio = markCanvas.width / markCanvas.height;
         const signatureWidth = Math.min(360, signatureHeight * markAspectRatio);
+        const logoWidth = 180;
+        const logoHeight = logoWidth * companyLogo.naturalHeight / companyLogo.naturalWidth;
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
-        context.font = '600 13px "DM Sans", sans-serif';
-        const companyWidth = context.measureText(companyName).width;
         context.font = '11px "DM Sans", sans-serif';
         const emailText = `Signed by ${signerEmail}`;
         const emailWidth = context.measureText(emailText).width;
@@ -1017,10 +943,10 @@
         const dateWidth = context.measureText(dateText).width;
         const width = Math.ceil(Math.min(
           900,
-          Math.max(220, signatureWidth + 24, companyWidth + 24, emailWidth + 24, dateWidth + 24)
+          Math.max(220, signatureWidth + 24, logoWidth + 24, emailWidth + 24, dateWidth + 24)
         ));
         canvas.width = width * scale;
-        canvas.height = 154 * scale;
+        canvas.height = 180 * scale;
         context.scale(scale, scale);
         const renderedMarkHeight = signatureWidth / markAspectRatio;
         context.drawImage(
@@ -1037,13 +963,13 @@
         context.lineTo(width - 12, 77);
         context.stroke();
         context.fillStyle = "#203c2d";
-        context.textBaseline = "alphabetic";
-        context.font = '600 13px "DM Sans", sans-serif';
-        context.fillText(companyName, 12, 99);
+        context.fillRect(12, 84, logoWidth, logoHeight);
+        context.drawImage(companyLogo, 12, 84, logoWidth, logoHeight);
         context.fillStyle = "#66736a";
+        context.textBaseline = "alphabetic";
         context.font = '11px "DM Sans", sans-serif';
-        context.fillText(emailText, 12, 117);
-        context.fillText(dateText, 12, 135);
+        context.fillText(emailText, 12, 151);
+        context.fillText(dateText, 12, 169);
         return canvas.toDataURL("image/png");
       }
 
@@ -1051,17 +977,16 @@
         const markCanvas = activeTab === "draw"
           ? (hasDrawn ? els.drawCanvas : null)
           : typedSignatureCanvas();
-        const companyName = els.companyName.value.trim();
         const signerEmail = authUser?.email_confirmed_at ? authUser.email : "";
-        const nextData = markCanvas && companyName && signerEmail
-          ? composeSignature(markCanvas, companyName, signerEmail, signedAt)
+        const nextData = markCanvas && signerEmail && companyLogo.complete && companyLogo.naturalWidth
+          ? composeSignature(markCanvas, signerEmail, signedAt)
           : null;
         const wasAvailable = Boolean(signatureDataUrl);
         signatureDataUrl = nextData;
         if (signatureDataUrl) {
           els.signaturePreview.src = signatureDataUrl;
           els.signaturePreview.classList.add("visible");
-          els.signaturePreview.alt = `Signature preview for ${companyName}, signed by ${signerEmail}, on ${formatSignedDate(signedAt)}`;
+          els.signaturePreview.alt = `Signature preview with Efficient Engineering logo, signed by ${signerEmail}, on ${formatSignedDate(signedAt)}`;
         } else {
           els.signaturePreview.classList.remove("visible");
           els.signaturePreview.removeAttribute("src");
@@ -1155,7 +1080,6 @@
       els.drawCanvas.addEventListener("pointercancel", endDraw);
       els.clearDraw.addEventListener("click", clearDraw);
       els.typedName.addEventListener("input", syncSignature);
-      els.companyName.addEventListener("input", syncSignature);
       els.fontOptions.forEach((button) => button.addEventListener("click", () => {
         activeFont = button.dataset.font;
         els.fontOptions.forEach((option) => option.classList.toggle("selected", option === button));
@@ -1176,8 +1100,12 @@
         renderPage();
       });
       els.downloadButton.addEventListener("click", exportSignedPdf);
-      els.authForm.addEventListener("submit", submitAuth);
-      els.authSwitch.addEventListener("click", () => setAuthMode(!isSignUpMode));
+      companyLogo.addEventListener("load", syncSignature);
+      companyLogo.addEventListener("error", () => {
+        console.error("Efficient Engineering logo failed to load.");
+        showToast("The company logo couldn't load. Refresh the page and try again.");
+      });
+      companyLogo.src = "efficient-engineering-logo.png";
       els.authSignOut.addEventListener("click", async () => {
         if (!authClient) return;
         els.authSignOut.disabled = true;
@@ -1203,7 +1131,6 @@
         if (renderTask) renderTask.cancel();
       });
 
-      setAuthMode(true);
       resizeDrawCanvas();
     })();
   </script>
