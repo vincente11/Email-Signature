@@ -60,6 +60,7 @@
     .main-nav a { padding: 9px 12px; border-radius: 8px; color: #59645d; font-size: 12px; font-weight: 600; text-decoration: none; }
     .main-nav a:hover, .main-nav a:focus-visible { background: #f0f3ee; color: var(--green); outline: none; }
     .main-nav a[aria-current="page"] { background: #edf3ee; color: var(--green-dark); }
+    .nav-notification-badge { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 5px; padding: 0 5px; border-radius: 10px; background: #b84938; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; }
 
     main { width: min(1170px, 92vw); margin: 42px auto 64px; flex: 1; }
     .intro { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; gap: 20px; }
@@ -281,7 +282,9 @@
       </div>
       <nav class="main-nav" aria-label="Main navigation">
         <a href="#signingWorkspace" aria-current="page">Sign a PDF</a>
-        <a id="collaborationNavLink" href="#collaborationSection" hidden>Collaboration requests</a>
+        <a id="collaborationNavLink" href="#collaborationSection" aria-label="Collaboration requests" hidden>
+          Collaboration requests<span id="requestNotificationBadge" class="nav-notification-badge" aria-hidden="true" hidden></span>
+        </a>
       </nav>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
     </header>
@@ -455,6 +458,7 @@
 
       const MAX_FILE_BYTES = 25 * 1024 * 1024;
       const MAX_SHARED_FILE_BYTES = 50 * 1024 * 1024;
+      const REQUEST_NOTIFICATION_POLL_MS = 30000;
       const MIN_SCALE = 0.65;
       const MAX_SCALE = 2.1;
       const PDFJS_VERSION = "3.11.174";
@@ -470,6 +474,7 @@
         profileLink: $("profileLink"),
         authSignOut: $("authSignOut"),
         collaborationNavLink: $("collaborationNavLink"),
+        requestNotificationBadge: $("requestNotificationBadge"),
         collaborationSection: $("collaborationSection"),
         collaborationTableBody: $("collaborationTableBody"),
         pendingRequestCount: $("pendingRequestCount"),
@@ -531,6 +536,11 @@
       let stampPlacement = null;
       let signingRequests = [];
       let requestFilter = "pending";
+      let notificationUserId = null;
+      let notificationSnapshot = null;
+      let unreadRequestIds = new Set();
+      let notificationPollTimer = null;
+      let requestRefreshInProgress = false;
       let selectedSigners = [];
       let activeSigningRequest = null;
       let signerSearchTimer = null;
@@ -628,6 +638,7 @@
           clearSignatureDraft();
           activeSigningRequest = null;
           els.downloadButton.textContent = "Download signed PDF";
+          initializeRequestNotifications(user?.id || null);
         }
 
         els.authLink.hidden = Boolean(user);
@@ -659,6 +670,9 @@
           void refreshCollaborationRequests();
         } else {
           signingRequests = [];
+          unreadRequestIds.clear();
+          notificationSnapshot = null;
+          renderRequestNotificationBadge();
           renderCollaborationRequests();
         }
       }
@@ -683,27 +697,135 @@
         showToast(`${message}${setupHint}`);
       }
 
-      async function refreshCollaborationRequests() {
-        if (!authClient || !authUser) return;
+      function getRequestNotificationStorageKey(userId) {
+        return `efficientSign:requestNotifications:${userId}`;
+      }
+
+      function initializeRequestNotifications(userId) {
+        window.clearInterval(notificationPollTimer);
+        notificationPollTimer = null;
+        notificationUserId = userId;
+        notificationSnapshot = null;
+        unreadRequestIds = new Set();
+        if (!userId) {
+          renderRequestNotificationBadge();
+          return;
+        }
+
+        try {
+          const savedState = localStorage.getItem(getRequestNotificationStorageKey(userId));
+          if (savedState) {
+            const parsedState = JSON.parse(savedState);
+            if (
+              parsedState &&
+              parsedState.snapshot &&
+              typeof parsedState.snapshot === "object" &&
+              Array.isArray(parsedState.unread)
+            ) {
+              notificationSnapshot = parsedState.snapshot;
+              unreadRequestIds = new Set(parsedState.unread.filter((id) => typeof id === "string"));
+            } else {
+              console.error("Saved collaboration notification state is invalid.");
+            }
+          }
+        } catch (error) {
+          console.error("Could not restore collaboration notification state:", error);
+        }
+
+        renderRequestNotificationBadge();
+        notificationPollTimer = window.setInterval(() => {
+          void refreshCollaborationRequests({ showLoading: false });
+        }, REQUEST_NOTIFICATION_POLL_MS);
+      }
+
+      function getRequestNotificationSignature(request) {
+        const signers = Array.isArray(request.signers) ? request.signers : [];
+        const signedCount = signers.filter((signer) => signer.status === "signed").length;
+        return [
+          request.status,
+          request.active_signer_position,
+          request.my_status || "",
+          request.signer_count,
+          signedCount
+        ].join(":");
+      }
+
+      function saveRequestNotificationState() {
+        if (!notificationUserId) return;
+        try {
+          localStorage.setItem(getRequestNotificationStorageKey(notificationUserId), JSON.stringify({
+            snapshot: notificationSnapshot || {},
+            unread: [...unreadRequestIds]
+          }));
+        } catch (error) {
+          console.error("Could not save collaboration notification state:", error);
+        }
+      }
+
+      function updateRequestNotificationState(requests) {
+        const nextSnapshot = Object.create(null);
+        const visibleRequestIds = new Set();
+        for (const request of requests) {
+          const requestId = request.request_id;
+          if (typeof requestId !== "string") continue;
+          visibleRequestIds.add(requestId);
+          const signature = getRequestNotificationSignature(request);
+          if (notificationSnapshot && notificationSnapshot[requestId] !== signature) {
+            unreadRequestIds.add(requestId);
+          }
+          nextSnapshot[requestId] = signature;
+        }
+
+        unreadRequestIds = new Set([...unreadRequestIds].filter((requestId) => visibleRequestIds.has(requestId)));
+        notificationSnapshot = nextSnapshot;
+        saveRequestNotificationState();
+        renderRequestNotificationBadge();
+      }
+
+      function renderRequestNotificationBadge() {
+        const count = unreadRequestIds.size;
+        els.requestNotificationBadge.hidden = count === 0;
+        els.requestNotificationBadge.textContent = String(count > 99 ? "99+" : count);
+        els.collaborationNavLink.setAttribute(
+          "aria-label",
+          count ? `Collaboration requests, ${count} new updates` : "Collaboration requests"
+        );
+      }
+
+      function markRequestNotificationsRead() {
+        unreadRequestIds.clear();
+        saveRequestNotificationState();
+        renderRequestNotificationBadge();
+      }
+
+      async function refreshCollaborationRequests({ showLoading = true } = {}) {
+        if (!authClient || !authUser || requestRefreshInProgress) return;
+        requestRefreshInProgress = true;
         els.collaborationLoadError.hidden = true;
-        els.collaborationTableBody.replaceChildren();
-        const loadingRow = document.createElement("tr");
-        const loadingCell = document.createElement("td");
-        loadingCell.className = "request-table-empty";
-        loadingCell.colSpan = 5;
-        loadingCell.textContent = "Loading collaboration requests…";
-        loadingRow.append(loadingCell);
-        els.collaborationTableBody.append(loadingRow);
+        if (showLoading) {
+          els.collaborationTableBody.replaceChildren();
+          const loadingRow = document.createElement("tr");
+          const loadingCell = document.createElement("td");
+          loadingCell.className = "request-table-empty";
+          loadingCell.colSpan = 5;
+          loadingCell.textContent = "Loading collaboration requests…";
+          loadingRow.append(loadingCell);
+          els.collaborationTableBody.append(loadingRow);
+        }
         try {
           const { data, error } = await authClient.rpc("list_signing_requests");
           if (error) throw error;
+          if (authUser?.id !== notificationUserId) return;
           signingRequests = data || [];
+          updateRequestNotificationState(signingRequests);
           renderCollaborationRequests();
         } catch (error) {
           els.collaborationLoadError.textContent = error?.message || "Couldn't load collaboration requests. Refresh to try again.";
           els.collaborationLoadError.hidden = false;
           renderCollaborationRequests();
           showCollaborationError(error, "Sign-off requests could not be loaded.");
+        } finally {
+          requestRefreshInProgress = false;
         }
       }
 
@@ -1573,6 +1695,7 @@
       els.downloadButton.addEventListener("click", exportSignedPdf);
       els.refreshRequests.addEventListener("click", () => void refreshCollaborationRequests());
       els.openRequestDialog.addEventListener("click", openRequestComposer);
+      els.collaborationNavLink.addEventListener("click", markRequestNotificationsRead);
       els.pendingRequestsTab.addEventListener("click", () => selectRequestFilter("pending"));
       els.approvedRequestsTab.addEventListener("click", () => selectRequestFilter("approved"));
       els.allRequestsTab.addEventListener("click", () => selectRequestFilter("all"));
@@ -1595,6 +1718,11 @@
           document.querySelectorAll(".main-nav a").forEach((navLink) => navLink.removeAttribute("aria-current"));
           link.setAttribute("aria-current", "page");
         });
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && authUser && authClient) {
+          void refreshCollaborationRequests({ showLoading: false });
+        }
       });
       els.cancelRequestDialog.addEventListener("click", () => els.requestDialog.close());
       els.startRequestButton.addEventListener("click", submitSigningRequest);
