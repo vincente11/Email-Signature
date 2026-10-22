@@ -66,6 +66,35 @@
     .workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 590px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; overflow: hidden; box-shadow: var(--shadow); }
     .sidebar { display: flex; flex-direction: column; padding: 24px 22px 18px; border-right: 1px solid var(--line); background: #fff; }
     .auth-card { margin-bottom: 23px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: #fcfcfa; }
+    .collaboration-card { margin: -10px 0 21px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #fcfcfa; }
+    .collaboration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .collaboration-heading h2 { margin: 0; font-size: 12px; }
+    .collaboration-heading button { padding: 3px; border: 0; background: transparent; color: var(--green); font-size: 10px; cursor: pointer; }
+    .collaboration-list { display: grid; gap: 8px; max-height: 210px; overflow: auto; }
+    .collaboration-empty { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .collaboration-item { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+    .collaboration-item-title { overflow-wrap: anywhere; font-size: 10px; font-weight: 700; }
+    .collaboration-item-meta { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+    .collaboration-item button { margin-top: 7px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--green); font-size: 9px; font-weight: 600; cursor: pointer; }
+    .collaboration-item button:disabled { opacity: .5; cursor: not-allowed; }
+    .request-dialog { width: min(460px, calc(100% - 28px)); max-height: min(680px, calc(100% - 28px)); padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: white; color: var(--ink); box-shadow: var(--shadow); }
+    .request-dialog::backdrop { background: rgba(22, 31, 25, .42); }
+    .request-dialog h2 { margin: 0 0 7px; font-size: 17px; }
+    .request-dialog p { margin: 0 0 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .request-dialog label { display: block; margin-bottom: 5px; color: var(--ink); font-size: 10px; font-weight: 600; }
+    .request-dialog input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 11px; }
+    .signer-results, .selected-signers { display: grid; gap: 6px; max-height: 160px; margin-top: 8px; overflow: auto; }
+    .signer-option { display: flex; width: 100%; flex-direction: column; gap: 3px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); text-align: left; cursor: pointer; }
+    .signer-option:hover { border-color: #9bb5a2; background: #f8faf7; }
+    .signer-option strong { font-size: 10px; }
+    .signer-option span { color: var(--muted); font-size: 9px; }
+    .selected-signers:empty { display: none; }
+    .selected-signer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 7px; background: #f5f7f2; font-size: 10px; }
+    .selected-signer button { border: 0; background: transparent; color: #8a4a37; font-size: 9px; cursor: pointer; }
+    .request-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .request-dialog-actions button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 10px; font-weight: 600; cursor: pointer; }
+    .request-dialog-actions .primary-button { width: auto; height: 36px; min-height: 36px; margin: 0; padding: 0 14px; border: 0; background: var(--green); color: white; }
+    .request-dialog-actions button:disabled { opacity: .5; cursor: not-allowed; }
     .auth-heading { margin: 0 0 8px; font-size: 12px; font-weight: 700; }
     .auth-message { margin: 0 0 11px; color: #737c76; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
     .auth-field { width: 100%; height: 37px; padding: 0 10px; border: 1px solid #dfe3dd; border-radius: 7px; outline: none; font-size: 11px; }
@@ -186,6 +215,16 @@
             <a id="profileLink" class="profile-link" href="login.html?complete-profile=1" hidden>Update name on account</a>
             <button id="authSignOut" class="primary-button auth-submit" type="button" hidden>Sign out</button>
           </section>
+          <section id="collaborationCard" class="collaboration-card" aria-labelledby="collaborationHeading" hidden>
+            <div class="collaboration-heading">
+              <h2 id="collaborationHeading">Sign-off requests</h2>
+              <button id="refreshRequests" type="button">Refresh</button>
+            </div>
+            <div id="collaborationList" class="collaboration-list" aria-live="polite">
+              <p class="collaboration-empty">Sign in to view your requests.</p>
+            </div>
+            <button id="openRequestDialog" class="auth-switch" type="button" disabled>Request sign-off</button>
+          </section>
           <div class="step-label">Step 01</div>
           <h2 class="step-heading">Choose a document</h2>
           <div id="fileCard" class="file-card" hidden>
@@ -277,6 +316,18 @@
     </main>
     <footer class="site-footer">Developed by Vincent Mlauzi</footer>
   </div>
+  <dialog id="requestDialog" class="request-dialog" aria-labelledby="requestDialogTitle">
+    <h2 id="requestDialogTitle">Request sign-off</h2>
+    <p>Choose registered users to sign this PDF in order. The document is stored privately and each signer can access it when it is their turn.</p>
+    <label for="signerSearch">Find a user by name or email</label>
+    <input id="signerSearch" type="search" autocomplete="off" placeholder="Type at least 2 characters">
+    <div id="signerResults" class="signer-results" aria-live="polite"></div>
+    <div id="selectedSigners" class="selected-signers" aria-label="Selected signers"></div>
+    <div class="request-dialog-actions">
+      <button id="cancelRequestDialog" type="button">Cancel</button>
+      <button id="startRequestButton" class="primary-button" type="button" disabled>Send request</button>
+    </div>
+  </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -284,6 +335,7 @@
       "use strict";
 
       const MAX_FILE_BYTES = 25 * 1024 * 1024;
+      const MAX_SHARED_FILE_BYTES = 50 * 1024 * 1024;
       const MIN_SCALE = 0.65;
       const MAX_SCALE = 2.1;
       const PDFJS_VERSION = "3.11.174";
@@ -298,6 +350,16 @@
         authLink: $("authLink"),
         profileLink: $("profileLink"),
         authSignOut: $("authSignOut"),
+        collaborationCard: $("collaborationCard"),
+        collaborationList: $("collaborationList"),
+        refreshRequests: $("refreshRequests"),
+        openRequestDialog: $("openRequestDialog"),
+        requestDialog: $("requestDialog"),
+        signerSearch: $("signerSearch"),
+        signerResults: $("signerResults"),
+        selectedSigners: $("selectedSigners"),
+        cancelRequestDialog: $("cancelRequestDialog"),
+        startRequestButton: $("startRequestButton"),
         choosePdf: $("choosePdf"),
         emptyUpload: $("emptyUpload"),
         pdfInput: $("pdfInput"),
@@ -341,6 +403,10 @@
       let authClient = null;
       let authUser = null;
       let stampPlacement = null;
+      let signingRequests = [];
+      let selectedSigners = [];
+      let activeSigningRequest = null;
+      let signerSearchTimer = null;
       let toastTimer = null;
       let resizeTimer = null;
 
@@ -431,11 +497,17 @@
         const hasAccountEmail = Boolean(user?.email);
         const signerName = getSignerName(user);
         const hasSignerName = Boolean(signerName);
-        if (userChanged) clearSignatureDraft();
+        if (userChanged) {
+          clearSignatureDraft();
+          activeSigningRequest = null;
+          els.downloadButton.textContent = "Download signed PDF";
+        }
 
         els.authLink.hidden = Boolean(user);
         els.profileLink.hidden = !user || hasSignerName;
         els.authSignOut.hidden = !user;
+        els.collaborationCard.hidden = !user;
+        els.openRequestDialog.disabled = !user || !pdfDocument || Boolean(activeSigningRequest);
 
         if (!user) {
           els.authMessage.textContent = authClient
@@ -455,6 +527,12 @@
         } else {
           syncSignature();
         }
+        if (user && authClient) {
+          void refreshCollaborationRequests();
+        } else {
+          signingRequests = [];
+          renderCollaborationRequests();
+        }
       }
 
       function getSignerName(user) {
@@ -466,6 +544,291 @@
           (typeof metadata.displayName === "string" ? metadata.displayName.trim() : "") ||
           (typeof metadata.full_name === "string" ? metadata.full_name.trim() : "") ||
           (typeof metadata.name === "string" ? metadata.name.trim() : "");
+      }
+
+      function showCollaborationError(error, fallback) {
+        console.error(fallback, error);
+        const message = error?.message || fallback;
+        const setupHint = /function .* does not exist|schema cache|relation .* does not exist/i.test(message)
+          ? " Apply the collaboration migration in supabase/migrations before using sign-off."
+          : "";
+        showToast(`${message}${setupHint}`);
+      }
+
+      async function refreshCollaborationRequests() {
+        if (!authClient || !authUser) return;
+        els.collaborationList.replaceChildren();
+        const loadingMessage = document.createElement("p");
+        loadingMessage.className = "collaboration-empty";
+        loadingMessage.textContent = "Loading requests…";
+        els.collaborationList.append(loadingMessage);
+        try {
+          const { data, error } = await authClient.rpc("list_signing_requests");
+          if (error) throw error;
+          signingRequests = data || [];
+          renderCollaborationRequests();
+        } catch (error) {
+          els.collaborationList.replaceChildren();
+          const errorMessage = document.createElement("p");
+          errorMessage.className = "collaboration-empty";
+          errorMessage.textContent = "Couldn't load sign-off requests. Refresh to try again.";
+          els.collaborationList.append(errorMessage);
+          showCollaborationError(error, "Sign-off requests could not be loaded.");
+        }
+      }
+
+      function renderCollaborationRequests() {
+        els.collaborationList.replaceChildren();
+        if (!authUser) {
+          const empty = document.createElement("p");
+          empty.className = "collaboration-empty";
+          empty.textContent = "Sign in to view your requests.";
+          els.collaborationList.append(empty);
+          return;
+        }
+        if (!signingRequests.length) {
+          const empty = document.createElement("p");
+          empty.className = "collaboration-empty";
+          empty.textContent = "No sign-off requests yet.";
+          els.collaborationList.append(empty);
+          return;
+        }
+
+        for (const request of signingRequests) {
+          const item = document.createElement("article");
+          item.className = "collaboration-item";
+          const title = document.createElement("div");
+          title.className = "collaboration-item-title";
+          title.textContent = request.file_name;
+          const meta = document.createElement("div");
+          meta.className = "collaboration-item-meta";
+          const signers = Array.isArray(request.signers) ? request.signers : [];
+          const activeSigner = signers.find((signer) => signer.position === request.active_signer_position);
+          let statusText;
+          if (request.status === "completed") {
+            statusText = "Complete · Everyone has signed.";
+          } else if (request.status === "cancelled") {
+            statusText = "Cancelled.";
+          } else if (request.owner_id === authUser.id) {
+            statusText = `You requested sign-off · Waiting for ${activeSigner?.display_name || "the next signer"} (${request.active_signer_position} of ${request.signer_count}).`;
+          } else if (request.my_status === "signed") {
+            statusText = `You signed · Waiting for ${activeSigner?.display_name || "the next signer"} (${request.active_signer_position} of ${request.signer_count}).`;
+          } else if (request.my_position === request.active_signer_position) {
+            statusText = `Your turn to sign (${request.my_position} of ${request.signer_count}). Requested by ${request.owner_name}.`;
+          } else {
+            statusText = `Waiting for signer ${request.active_signer_position} of ${request.signer_count}. Requested by ${request.owner_name}.`;
+          }
+          meta.textContent = statusText;
+          item.append(title, meta);
+
+          if (request.status === "completed") {
+            const downloadButton = document.createElement("button");
+            downloadButton.type = "button";
+            downloadButton.textContent = "Download completed PDF";
+            downloadButton.addEventListener("click", () => downloadSigningRequest(request));
+            item.append(downloadButton);
+          } else if (
+            request.status === "pending" &&
+            request.owner_id !== authUser.id &&
+            request.my_status === "pending" &&
+            request.my_position === request.active_signer_position
+          ) {
+            const signButton = document.createElement("button");
+            signButton.type = "button";
+            signButton.textContent = "Open to sign";
+            signButton.addEventListener("click", () => openSigningRequest(request, signButton));
+            item.append(signButton);
+          }
+          els.collaborationList.append(item);
+        }
+      }
+
+      async function searchSigningUsers(query) {
+        els.signerResults.replaceChildren();
+        if (query.trim().length < 2) return;
+        try {
+          const { data, error } = await authClient.rpc("search_signing_users", { p_query: query.trim() });
+          if (error) throw error;
+          if (els.signerSearch.value.trim() !== query.trim()) return;
+          const matches = (data || []).filter((user) => !selectedSigners.some((selected) => selected.user_id === user.user_id));
+          if (!matches.length) {
+            const empty = document.createElement("p");
+            empty.className = "collaboration-empty";
+            empty.textContent = "No matching users found.";
+            els.signerResults.append(empty);
+            return;
+          }
+          for (const user of matches) {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "signer-option";
+            const name = document.createElement("strong");
+            name.textContent = user.display_name;
+            const email = document.createElement("span");
+            email.textContent = user.email;
+            option.append(name, email);
+            option.addEventListener("click", () => {
+              if (selectedSigners.length >= 10) {
+                showToast("A sign-off request can include up to 10 signers.");
+                return;
+              }
+              selectedSigners.push(user);
+              renderSelectedSigners();
+              void searchSigningUsers(els.signerSearch.value);
+            });
+            els.signerResults.append(option);
+          }
+        } catch (error) {
+          showCollaborationError(error, "The user directory could not be searched.");
+        }
+      }
+
+      function renderSelectedSigners() {
+        els.selectedSigners.replaceChildren();
+        selectedSigners.forEach((signer, index) => {
+          const item = document.createElement("div");
+          item.className = "selected-signer";
+          const label = document.createElement("span");
+          label.textContent = `${index + 1}. ${signer.display_name} (${signer.email})`;
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.textContent = "Remove";
+          remove.setAttribute("aria-label", `Remove ${signer.display_name}`);
+          remove.addEventListener("click", () => {
+            selectedSigners = selectedSigners.filter((selected) => selected.user_id !== signer.user_id);
+            renderSelectedSigners();
+            void searchSigningUsers(els.signerSearch.value);
+          });
+          item.append(label, remove);
+          els.selectedSigners.append(item);
+        });
+        els.startRequestButton.disabled = selectedSigners.length === 0;
+      }
+
+      function openRequestComposer() {
+        if (!authUser || !pdfDocument || !originalPdfBytes) {
+          showToast("Choose a PDF and sign in before requesting sign-off.");
+          return;
+        }
+        selectedSigners = [];
+        els.signerSearch.value = "";
+        els.signerResults.replaceChildren();
+        renderSelectedSigners();
+        els.requestDialog.showModal();
+        els.signerSearch.focus();
+      }
+
+      function createRequestId() {
+        if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+      }
+
+      async function submitSigningRequest() {
+        if (!authClient || !authUser || !originalPdfBytes || !selectedSigners.length) return;
+        const requestId = createRequestId();
+        const storagePath = `${requestId}/document.pdf`;
+        let requestCreated = false;
+        let documentUploaded = false;
+        els.startRequestButton.disabled = true;
+        setLoading(true, "Creating private sign-off request…");
+        try {
+          const { error: insertError } = await authClient.from("signing_requests").insert({
+            id: requestId,
+            owner_id: authUser.id,
+            file_name: sourceFileName,
+            storage_path: storagePath,
+            status: "draft"
+          });
+          if (insertError) throw insertError;
+          requestCreated = true;
+
+          const { error: uploadError } = await authClient.storage
+            .from("signing-documents")
+            .upload(storagePath, new Blob([originalPdfBytes], { type: "application/pdf" }), {
+              contentType: "application/pdf",
+              upsert: false
+            });
+          if (uploadError) throw uploadError;
+          documentUploaded = true;
+
+          const { error: startError } = await authClient.rpc("start_signing_request", {
+            p_request_id: requestId,
+            p_signer_ids: selectedSigners.map((signer) => signer.user_id)
+          });
+          if (startError) throw startError;
+
+          els.requestDialog.close();
+          showToast("Sign-off request sent. Selected users can find it in their request list.");
+          await refreshCollaborationRequests();
+        } catch (error) {
+          if (documentUploaded) {
+            const { error: cleanupError } = await authClient.storage
+              .from("signing-documents")
+              .remove([storagePath]);
+            if (cleanupError) console.error("Could not remove incomplete sign-off document:", cleanupError);
+          }
+          if (requestCreated) {
+            const { error: cleanupError } = await authClient
+              .from("signing_requests")
+              .delete()
+              .eq("id", requestId)
+              .eq("status", "draft");
+            if (cleanupError) console.error("Could not remove incomplete sign-off request:", cleanupError);
+          }
+          showCollaborationError(error, "The sign-off request could not be created.");
+        } finally {
+          setLoading(false);
+          els.startRequestButton.disabled = selectedSigners.length === 0;
+        }
+      }
+
+      async function openSigningRequest(request, button) {
+        if (!authClient || !authUser) return;
+        if (pdfDocument && !window.confirm("Opening this request will replace the PDF currently loaded in the workspace. Continue?")) {
+          return;
+        }
+        button.disabled = true;
+        try {
+          const { data, error } = await authClient.storage
+            .from("signing-documents")
+            .download(request.storage_path);
+          if (error) throw error;
+          await loadPdf(new File([data], request.file_name, { type: "application/pdf" }), true);
+          if (!pdfDocument) return;
+          activeSigningRequest = request;
+          els.openRequestDialog.disabled = true;
+          els.downloadButton.textContent = "Submit signature";
+          showToast("This is a shared sign-off request. Submit your signature to pass it to the next signer.");
+        } catch (error) {
+          showCollaborationError(error, "The sign-off document could not be opened.");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function downloadSigningRequest(request) {
+        if (!authClient) return;
+        try {
+          const { data, error } = await authClient.storage
+            .from("signing-documents")
+            .download(request.storage_path);
+          if (error) throw error;
+          const url = URL.createObjectURL(data);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${request.file_name.replace(/\.pdf$/i, "")}-signed.pdf`;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+          showCollaborationError(error, "The completed PDF could not be downloaded.");
+        }
       }
 
       function setLoading(isLoading, message = "Loading your document…") {
@@ -506,6 +869,7 @@
         pdfDocument = null;
         originalPdfBytes = null;
         sourceFileName = "";
+        activeSigningRequest = null;
         currentPageNumber = 1;
         zoom = 1;
         resetPlacement();
@@ -527,6 +891,8 @@
         els.zoomOut.disabled = true;
         els.zoomIn.disabled = true;
         els.downloadButton.disabled = true;
+        els.downloadButton.textContent = "Download signed PDF";
+        els.openRequestDialog.disabled = !authUser || !pdfDocument;
         setLoading(false);
       }
 
@@ -534,10 +900,13 @@
         els.pdfInput.click();
       }
 
-      async function loadPdf(file) {
+      async function loadPdf(file, isSharedRequest = false) {
         if (!file) return;
-        if (file.size > MAX_FILE_BYTES) {
-          showToast("This PDF is larger than 25 MB. Please choose a smaller file.");
+        activeSigningRequest = null;
+        els.downloadButton.textContent = "Download signed PDF";
+        const maximumFileBytes = isSharedRequest ? MAX_SHARED_FILE_BYTES : MAX_FILE_BYTES;
+        if (file.size > maximumFileBytes) {
+          showToast(`This PDF exceeds the ${isSharedRequest ? "50 MB shared-document" : "25 MB"} limit.`);
           els.pdfInput.value = "";
           return;
         }
@@ -572,6 +941,7 @@
           els.emptyState.hidden = true;
           els.stageContent.hidden = false;
           els.documentArea.classList.add("has-document");
+          els.openRequestDialog.disabled = !authUser;
           els.statusText.textContent = "Ready to sign";
           els.statusDot.classList.add("ready");
           els.currentPage.textContent = "1";
@@ -919,6 +1289,7 @@
           showToast("Add your signature to a page before downloading.");
           return;
         }
+        const isSharedSigning = Boolean(activeSigningRequest);
         els.downloadButton.disabled = true;
         setLoading(true, "Preparing your signed PDF…");
         try {
@@ -952,6 +1323,27 @@
             rotate: window.PDFLib.degrees(rotation)
           });
           const signedBytes = await pdf.save();
+          if (isSharedSigning && activeSigningRequest) {
+            setLoading(true, "Submitting your signature…");
+            const { error: uploadError } = await authClient.storage
+              .from("signing-documents")
+              .upload(activeSigningRequest.storage_path, new Blob([signedBytes], { type: "application/pdf" }), {
+                contentType: "application/pdf",
+                upsert: true
+              });
+            if (uploadError) throw uploadError;
+            const { data: requestStatus, error: completionError } = await authClient.rpc("complete_signing_step", {
+              p_request_id: activeSigningRequest.request_id
+            });
+            if (completionError) throw completionError;
+            activeSigningRequest = null;
+            els.downloadButton.textContent = "Download signed PDF";
+            els.openRequestDialog.disabled = !authUser || !pdfDocument;
+            await refreshCollaborationRequests();
+            showToast(requestStatus === "completed"
+              ? "All signers are done. The completed PDF is ready to download."
+              : "Signature submitted. The document is now with the next signer.");
+          }
           const blob = new Blob([signedBytes], { type: "application/pdf" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
@@ -961,10 +1353,16 @@
           link.click();
           link.remove();
           window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-          showToast("Your signed PDF has been downloaded.");
+          if (!isSharedSigning) {
+            showToast("Your signed PDF has been downloaded.");
+          }
         } catch (error) {
-          showToast("The signed PDF could not be created. Please try again with another PDF.");
-          console.error("PDF export failed:", error);
+          if (isSharedSigning) {
+            showCollaborationError(error, "Your signature could not be submitted.");
+          } else {
+            showToast("The signed PDF could not be created. Please try again with another PDF.");
+            console.error("PDF export failed:", error);
+          }
         } finally {
           setLoading(false);
           els.downloadButton.disabled = !stampPlacement || !signatureDataUrl;
@@ -990,6 +1388,19 @@
         renderPage();
       });
       els.downloadButton.addEventListener("click", exportSignedPdf);
+      els.refreshRequests.addEventListener("click", () => void refreshCollaborationRequests());
+      els.openRequestDialog.addEventListener("click", openRequestComposer);
+      els.cancelRequestDialog.addEventListener("click", () => els.requestDialog.close());
+      els.startRequestButton.addEventListener("click", submitSigningRequest);
+      els.signerSearch.addEventListener("input", () => {
+        window.clearTimeout(signerSearchTimer);
+        els.signerResults.replaceChildren();
+        signerSearchTimer = window.setTimeout(() => {
+          void searchSigningUsers(els.signerSearch.value).catch((error) => {
+            showCollaborationError(error, "The user directory could not be searched.");
+          });
+        }, 250);
+      });
       companyLogo.addEventListener("load", syncSignature);
       companyLogo.addEventListener("error", () => {
         console.error("Efficient Engineering logo failed to load.");
