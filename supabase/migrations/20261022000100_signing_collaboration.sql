@@ -258,7 +258,7 @@ begin
     raise exception 'Upload the PDF before starting the sign-off request.';
   end if;
 
-  insert into public.signing_request_signers (request_id, signer_id, position)
+  insert into public.signing_request_signers (request_id, signer_id, signer_order)
   select p_request_id, requested.signer_id, requested.signer_order::smallint
   from unnest(p_signer_ids) with ordinality as requested(signer_id, signer_order);
 
