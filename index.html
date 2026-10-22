@@ -51,7 +51,7 @@
       border-bottom: 1px solid var(--line);
     }
     .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: -.5px; }
-    .brand-logo { width: 150px; height: 38px; padding: 5px 8px; border-radius: 7px; background: var(--green); object-fit: contain; }
+    .brand-logo { width: 46px; height: 34px; object-fit: contain; }
     .brand-name { font-size: 18px; }
     .site-footer { padding: 16px 24px; border-top: 1px solid var(--line); background: #fbfbf9; color: var(--muted); font-size: 11px; text-align: center; }
     .topbar-note { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
@@ -162,7 +162,7 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand" aria-label="EFFICIENT SIGN home">
-        <img class="brand-logo" src="efficient-engineering-logo.png" alt="Efficient Engineering">
+        <img class="brand-logo" src="efficient-engineering-mark.png" alt="Efficient Engineering logo">
         <span class="brand-name">EFFICIENT SIGN</span>
       </div>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
@@ -867,9 +867,9 @@
         context.moveTo(12, 77);
         context.lineTo(width - 12, 77);
         context.stroke();
-        context.fillStyle = "#203c2d";
-        context.fillRect(12, 84, logoWidth, logoHeight);
+        context.filter = "brightness(0)";
         context.drawImage(companyLogo, 12, 84, logoWidth, logoHeight);
+        context.filter = "none";
         context.fillStyle = "#666666";
         context.textBaseline = "alphabetic";
         context.font = '11px "DM Sans", sans-serif';
