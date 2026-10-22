@@ -61,6 +61,9 @@
     .main-nav a:hover, .main-nav a:focus-visible { background: #f0f3ee; color: var(--green); outline: none; }
     .main-nav a[aria-current="page"] { background: #edf3ee; color: var(--green-dark); }
     .nav-notification-badge { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 5px; padding: 0 5px; border-radius: 10px; background: #b84938; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; }
+    .browser-notification-toggle { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: #59645d; font-size: 10px; font-weight: 600; cursor: pointer; }
+    .browser-notification-toggle:hover, .browser-notification-toggle:focus-visible { border-color: #9bb5a2; background: #f0f3ee; color: var(--green); outline: none; }
+    .browser-notification-toggle:disabled { opacity: .65; cursor: not-allowed; }
 
     main { width: min(1170px, 92vw); margin: 42px auto 64px; flex: 1; }
     .intro { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; gap: 20px; }
@@ -204,7 +207,7 @@
 
     @media (max-width: 760px) {
       .topbar { min-height: 62px; padding: 8px 5vw; flex-wrap: wrap; gap: 5px 12px; }
-      .main-nav { order: 3; width: 100%; justify-content: center; border-top: 1px solid var(--line); }
+      .main-nav { order: 3; width: 100%; flex-wrap: wrap; justify-content: center; border-top: 1px solid var(--line); }
       .main-nav a { padding: 8px 10px; }
       .topbar-note { font-size: 10px; }
       main { width: min(100% - 24px, 620px); margin: 28px auto 36px; }
@@ -244,6 +247,7 @@
         <a id="collaborationNavLink" href="collaboration.html" aria-label="Collaboration requests" hidden>
           Collaboration requests<span id="requestNotificationBadge" class="nav-notification-badge" aria-hidden="true" hidden></span>
         </a>
+        <button id="browserNotificationToggle" class="browser-notification-toggle" type="button" hidden></button>
       </nav>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
     </header>
@@ -373,6 +377,7 @@
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="browser-notifications.js"></script>
   <script>
     (() => {
       "use strict";
@@ -396,6 +401,7 @@
         authSignOut: $("authSignOut"),
         collaborationNavLink: $("collaborationNavLink"),
         requestNotificationBadge: $("requestNotificationBadge"),
+        browserNotificationToggle: $("browserNotificationToggle"),
         openRequestDialog: $("openRequestDialog"),
         requestDialog: $("requestDialog"),
         signerSearch: $("signerSearch"),
@@ -433,6 +439,7 @@
         loading: $("loading"),
         toast: $("toast")
       };
+      const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle);
 
       let pdfDocument = null;
       let originalPdfBytes = null;
@@ -543,6 +550,7 @@
         const previousUserId = authUser?.id || null;
         authUser = user;
         const userChanged = previousUserId !== (user?.id || null);
+        browserNotifications.setUserId(user?.id || null);
         const hasAccountEmail = Boolean(user?.email);
         const signerName = getSignerName(user);
         const hasSignerName = Boolean(signerName);
@@ -675,6 +683,7 @@
       function updateRequestNotificationState(requests) {
         const nextSnapshot = Object.create(null);
         const visibleRequestIds = new Set();
+        const changedRequests = [];
         for (const request of requests) {
           const requestId = request.request_id;
           if (typeof requestId !== "string") continue;
@@ -686,6 +695,7 @@
               notificationSnapshot[requestId] !== signature)
           ) {
             unreadRequestIds.add(requestId);
+            changedRequests.push({ request, signature });
           }
           nextSnapshot[requestId] = signature;
         }
@@ -694,6 +704,24 @@
         notificationSnapshot = nextSnapshot;
         saveRequestNotificationState();
         renderRequestNotificationBadge();
+        for (const { request, signature } of changedRequests) {
+          const fileName = request.file_name || "a document";
+          const title = request.status === "completed"
+            ? "Sign-off complete"
+            : request.status === "cancelled"
+              ? "Sign-off request cancelled"
+              : request.my_status === "pending" && request.my_position === request.active_signer_position
+                ? "Your sign-off is ready"
+                : "Sign-off progress updated";
+          const body = request.status === "completed"
+            ? `All signers have approved ${fileName}.`
+            : request.status === "cancelled"
+              ? `${fileName} was cancelled.`
+              : request.my_status === "pending" && request.my_position === request.active_signer_position
+                ? `Your approval is requested for ${fileName}.`
+                : `Signing progress changed for ${fileName}.`;
+          browserNotifications.show(notificationUserId, request.request_id, signature, title, body);
+        }
       }
 
       function renderRequestNotificationBadge() {

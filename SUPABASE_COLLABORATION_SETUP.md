@@ -12,4 +12,6 @@ The migration creates a private `signing-documents` Storage bucket, account dire
 
 Requests are managed on the dedicated [`collaboration.html`](./collaboration.html) page. The navigation badge shows new requests and changes to signing progress; the page refreshes automatically while open. Signers act in the order selected by the requester; only the active signer can open and update the private PDF. Requests support up to 10 signers.
 
+Signed-in users can choose **Enable browser alerts** in the navigation and allow notifications in Chrome. When the site is open in a background tab, it checks for collaboration updates and can display a Chrome notification. This browser-only feature does not send notifications when the site is closed; that requires a separate push-notification sender on a server.
+
 Signatures remain visible marks in the PDF, not certificate-backed digital signatures or identity verification.
