@@ -454,9 +454,14 @@
           const date = new Date(request.created_at);
           const dateLabel = document.createElement("span");
           dateLabel.className = "request-subtext";
-          dateLabel.textContent = Number.isNaN(date.getTime())
-            ? "Date unavailable"
-            : `Created ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)}`;
+          const lastSignedAt = [...(Array.isArray(request.signers) ? request.signers : [])]
+            .reverse()
+            .find((signer) => signer.status === "signed" && signer.signed_at)?.signed_at;
+          dateLabel.textContent = request.status === "completed" && lastSignedAt
+            ? `Approved ${formatTimelineDate(lastSignedAt)}`
+            : Number.isNaN(date.getTime())
+              ? "Date unavailable"
+              : `Created ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)}`;
           documentCell.append(fileName, dateLabel);
 
           const requesterCell = document.createElement("td");
@@ -666,7 +671,7 @@
           const state = document.createElement("span");
           state.className = "signer-step-status";
           state.textContent = isSigned
-            ? "Signed"
+            ? `Approved ${formatTimelineDate(signer.signed_at)}`
             : cancelled
               ? "Not signed — request cancelled"
               : isActive
