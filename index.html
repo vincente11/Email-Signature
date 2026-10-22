@@ -1306,9 +1306,9 @@
         const logoHeight = logoWidth * companyLogo.naturalHeight / companyLogo.naturalWidth;
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
-        context.font = 'italic 34px "Playfair Display", Georgia, serif';
+        context.font = 'italic 36px "Playfair Display", Georgia, serif';
         const signerNameWidth = signerName ? context.measureText(signerName).width : 0;
-        context.font = '11px "DM Sans", sans-serif';
+        context.font = '13px "DM Sans", sans-serif';
         const declarationText = `I, ${signerName}, declare that I have signed this document.`;
         const declarationWidth = context.measureText(declarationText).width;
         const emailWidth = context.measureText(signerEmail).width;
@@ -1323,7 +1323,7 @@
         context.scale(scale, scale);
         context.fillStyle = "#1f1f1f";
         context.textBaseline = "alphabetic";
-        context.font = 'italic 34px "Playfair Display", Georgia, serif';
+        context.font = 'italic 36px "Playfair Display", Georgia, serif';
         context.fillText(signerName, 12, 55, width - 24);
         context.strokeStyle = "#dfe5de";
         context.lineWidth = 1;
@@ -1336,7 +1336,7 @@
         context.filter = "none";
         context.fillStyle = "#666666";
         context.textBaseline = "alphabetic";
-        context.font = '11px "DM Sans", sans-serif';
+        context.font = '13px "DM Sans", sans-serif';
         context.fillText(declarationText, 12, 151, width - 24);
         context.fillText(signerEmail, 12, 169, width - 24);
         context.fillText(dateText, 12, 187);
