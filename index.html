@@ -56,6 +56,10 @@
     .site-footer { padding: 16px 24px; border-top: 1px solid var(--line); background: #fbfbf9; color: var(--muted); font-size: 11px; text-align: center; }
     .topbar-note { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
     .secure-dot { width: 7px; height: 7px; background: #7da76f; border-radius: 50%; }
+    .main-nav { display: flex; align-items: center; gap: 7px; }
+    .main-nav a { padding: 9px 12px; border-radius: 8px; color: #59645d; font-size: 12px; font-weight: 600; text-decoration: none; }
+    .main-nav a:hover, .main-nav a:focus-visible { background: #f0f3ee; color: var(--green); outline: none; }
+    .main-nav a[aria-current="page"] { background: #edf3ee; color: var(--green-dark); }
 
     main { width: min(1170px, 92vw); margin: 42px auto 64px; flex: 1; }
     .intro { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; gap: 20px; }
@@ -66,17 +70,36 @@
     .workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: 590px; background: var(--paper); border: 1px solid var(--line); border-radius: 17px; overflow: hidden; box-shadow: var(--shadow); }
     .sidebar { display: flex; flex-direction: column; padding: 24px 22px 18px; border-right: 1px solid var(--line); background: #fff; }
     .auth-card { margin-bottom: 23px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: #fcfcfa; }
-    .collaboration-card { margin: -10px 0 21px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #fcfcfa; }
-    .collaboration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-    .collaboration-heading h2 { margin: 0; font-size: 12px; }
-    .collaboration-heading button { padding: 3px; border: 0; background: transparent; color: var(--green); font-size: 10px; cursor: pointer; }
-    .collaboration-list { display: grid; gap: 8px; max-height: 210px; overflow: auto; }
-    .collaboration-empty { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
-    .collaboration-item { padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: white; }
-    .collaboration-item-title { overflow-wrap: anywhere; font-size: 10px; font-weight: 700; }
-    .collaboration-item-meta { margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.45; }
-    .collaboration-item button { margin-top: 7px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--green); font-size: 9px; font-weight: 600; cursor: pointer; }
-    .collaboration-item button:disabled { opacity: .5; cursor: not-allowed; }
+    .collaboration-section { margin-top: 30px; padding: 24px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); box-shadow: var(--shadow); scroll-margin-top: 20px; }
+    .collaboration-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+    .collaboration-heading h2 { margin: 5px 0 5px; font-size: 21px; letter-spacing: -.5px; }
+    .collaboration-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .collaboration-actions { display: flex; align-items: center; gap: 8px; }
+    .collaboration-actions button { min-height: 37px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); font-size: 11px; font-weight: 600; cursor: pointer; }
+    .collaboration-actions .primary-button { width: auto; height: 37px; min-height: 37px; margin: 0; padding: 0 14px; border: 0; background: var(--green); color: white; }
+    .collaboration-actions button:disabled { opacity: .5; cursor: not-allowed; }
+    .request-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 15px; border-bottom: 1px solid var(--line); }
+    .request-tab { position: relative; min-height: 40px; padding: 0 13px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+    .request-tab[aria-selected="true"] { color: var(--green); }
+    .request-tab[aria-selected="true"]::after { position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; background: var(--green); content: ""; }
+    .request-count { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 5px; padding: 0 5px; border-radius: 10px; background: #f0f2ef; color: inherit; font-size: 9px; }
+    .request-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .request-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .request-table th { padding: 11px 14px; background: #f8f9f7; color: #727a74; font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; white-space: nowrap; }
+    .request-table td { padding: 13px 14px; border-top: 1px solid #edf0eb; color: #47514a; font-size: 11px; vertical-align: middle; }
+    .request-table tbody tr:hover { background: #fcfdfb; }
+    .request-file { max-width: 280px; overflow-wrap: anywhere; color: var(--ink); font-weight: 600; }
+    .request-subtext { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
+    .request-status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 20px; background: #fff5e8; color: #8a5a21; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .request-status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
+    .request-status.approved { background: #edf5ee; color: #356b47; }
+    .request-status.cancelled { background: #f1f2f1; color: #707974; }
+    .request-table .request-action { padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--green); font-size: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .request-table .request-action:hover { border-color: #9bb5a2; background: #f8faf7; }
+    .request-table .request-action:disabled { opacity: .5; cursor: not-allowed; }
+    .request-table-empty { padding: 36px 16px !important; color: var(--muted) !important; text-align: center; }
+    .collaboration-empty { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .collaboration-load-error { margin: 12px 0 0; color: #8a4a37; font-size: 11px; }
     .request-dialog { width: min(460px, calc(100% - 28px)); max-height: min(680px, calc(100% - 28px)); padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: white; color: var(--ink); box-shadow: var(--shadow); }
     .request-dialog::backdrop { background: rgba(22, 31, 25, .42); }
     .request-dialog h2 { margin: 0 0 7px; font-size: 17px; }
@@ -167,13 +190,20 @@
     .toast.show { transform: translateY(0); opacity: 1; }
 
     @media (max-width: 760px) {
-      .topbar { min-height: 62px; padding: 0 5vw; }
+      .topbar { min-height: 62px; padding: 8px 5vw; flex-wrap: wrap; gap: 5px 12px; }
+      .main-nav { order: 3; width: 100%; justify-content: center; border-top: 1px solid var(--line); }
+      .main-nav a { padding: 8px 10px; }
       .topbar-note { font-size: 10px; }
       main { width: min(100% - 24px, 620px); margin: 28px auto 36px; }
       .intro { align-items: flex-start; }
       .workspace { grid-template-columns: 1fr; }
       .sidebar { padding: 19px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
       .sidebar-bottom { margin-top: 14px; }
+      .collaboration-section { margin-top: 20px; padding: 18px 14px; }
+      .collaboration-heading { flex-direction: column; }
+      .collaboration-actions { width: 100%; }
+      .collaboration-actions button { flex: 1; }
+      .request-table { min-width: 690px; }
       .document-area { min-height: 430px; }
       .stage { min-height: 360px; padding: 20px 12px; }
       .empty-state { min-height: 315px; }
@@ -194,6 +224,10 @@
         <img class="brand-logo" src="efficient-engineering-mark.png" alt="Efficient Engineering logo">
         <span class="brand-name">EFFICIENT SIGN</span>
       </div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#signingWorkspace" aria-current="page">Sign a PDF</a>
+        <a id="collaborationNavLink" href="#collaborationSection" hidden>Collaboration requests</a>
+      </nav>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
     </header>
 
@@ -206,7 +240,7 @@
         </div>
       </section>
 
-      <section class="workspace" aria-label="PDF signing workspace">
+      <section id="signingWorkspace" class="workspace" aria-label="PDF signing workspace">
         <aside class="sidebar">
           <section class="auth-card" aria-labelledby="authHeading">
             <h2 id="authHeading" class="auth-heading">Your signer account</h2>
@@ -214,16 +248,6 @@
             <a id="authLink" class="primary-button auth-submit auth-link" href="login.html">Sign in or create account</a>
             <a id="profileLink" class="profile-link" href="login.html?complete-profile=1" hidden>Update name on account</a>
             <button id="authSignOut" class="primary-button auth-submit" type="button" hidden>Sign out</button>
-          </section>
-          <section id="collaborationCard" class="collaboration-card" aria-labelledby="collaborationHeading" hidden>
-            <div class="collaboration-heading">
-              <h2 id="collaborationHeading">Sign-off requests</h2>
-              <button id="refreshRequests" type="button">Refresh</button>
-            </div>
-            <div id="collaborationList" class="collaboration-list" aria-live="polite">
-              <p class="collaboration-empty">Sign in to view your requests.</p>
-            </div>
-            <button id="openRequestDialog" class="auth-switch" type="button" disabled>Request sign-off</button>
           </section>
           <div class="step-label">Step 01</div>
           <h2 class="step-heading">Choose a document</h2>
@@ -313,6 +337,46 @@
           </div>
         </section>
       </section>
+
+      <section id="collaborationSection" class="collaboration-section" aria-labelledby="collaborationHeading" hidden>
+        <div class="collaboration-heading">
+          <div>
+            <div class="eyebrow">Shared documents</div>
+            <h2 id="collaborationHeading">Collaboration requests</h2>
+            <p>Track documents waiting for sign-off and download fully approved PDFs.</p>
+          </div>
+          <div class="collaboration-actions">
+            <button id="refreshRequests" type="button">Refresh requests</button>
+            <button id="openRequestDialog" class="primary-button" type="button" disabled>Request sign-off</button>
+          </div>
+        </div>
+        <div class="request-tabs" role="tablist" aria-label="Filter sign-off requests">
+          <button id="pendingRequestsTab" class="request-tab" type="button" role="tab" aria-selected="true" aria-controls="collaborationTablePanel">
+            Pending <span id="pendingRequestCount" class="request-count">0</span>
+          </button>
+          <button id="approvedRequestsTab" class="request-tab" type="button" role="tab" aria-selected="false" aria-controls="collaborationTablePanel">
+            Approved <span id="approvedRequestCount" class="request-count">0</span>
+          </button>
+          <button id="allRequestsTab" class="request-tab" type="button" role="tab" aria-selected="false" aria-controls="collaborationTablePanel">All requests</button>
+        </div>
+        <div id="collaborationTablePanel" class="request-table-wrap" role="tabpanel" aria-labelledby="pendingRequestsTab" tabindex="0">
+          <table class="request-table">
+            <thead>
+              <tr>
+                <th scope="col">Document</th>
+                <th scope="col">Requested by</th>
+                <th scope="col">Signing progress</th>
+                <th scope="col">Status</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="collaborationTableBody" aria-live="polite">
+              <tr><td class="request-table-empty" colspan="5">Sign in to view collaboration requests.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="collaborationLoadError" class="collaboration-load-error" role="alert" hidden></p>
+      </section>
     </main>
     <footer class="site-footer">Developed by Vincent Mlauzi</footer>
   </div>
@@ -350,8 +414,15 @@
         authLink: $("authLink"),
         profileLink: $("profileLink"),
         authSignOut: $("authSignOut"),
-        collaborationCard: $("collaborationCard"),
-        collaborationList: $("collaborationList"),
+        collaborationNavLink: $("collaborationNavLink"),
+        collaborationSection: $("collaborationSection"),
+        collaborationTableBody: $("collaborationTableBody"),
+        pendingRequestCount: $("pendingRequestCount"),
+        approvedRequestCount: $("approvedRequestCount"),
+        pendingRequestsTab: $("pendingRequestsTab"),
+        approvedRequestsTab: $("approvedRequestsTab"),
+        allRequestsTab: $("allRequestsTab"),
+        collaborationLoadError: $("collaborationLoadError"),
         refreshRequests: $("refreshRequests"),
         openRequestDialog: $("openRequestDialog"),
         requestDialog: $("requestDialog"),
@@ -404,6 +475,7 @@
       let authUser = null;
       let stampPlacement = null;
       let signingRequests = [];
+      let requestFilter = "pending";
       let selectedSigners = [];
       let activeSigningRequest = null;
       let signerSearchTimer = null;
@@ -506,7 +578,8 @@
         els.authLink.hidden = Boolean(user);
         els.profileLink.hidden = !user || hasSignerName;
         els.authSignOut.hidden = !user;
-        els.collaborationCard.hidden = !user;
+        els.collaborationNavLink.hidden = !user;
+        els.collaborationSection.hidden = !user;
         els.openRequestDialog.disabled = !user || !pdfDocument || Boolean(activeSigningRequest);
 
         if (!user) {
@@ -557,76 +630,116 @@
 
       async function refreshCollaborationRequests() {
         if (!authClient || !authUser) return;
-        els.collaborationList.replaceChildren();
-        const loadingMessage = document.createElement("p");
-        loadingMessage.className = "collaboration-empty";
-        loadingMessage.textContent = "Loading requests…";
-        els.collaborationList.append(loadingMessage);
+        els.collaborationLoadError.hidden = true;
+        els.collaborationTableBody.replaceChildren();
+        const loadingRow = document.createElement("tr");
+        const loadingCell = document.createElement("td");
+        loadingCell.className = "request-table-empty";
+        loadingCell.colSpan = 5;
+        loadingCell.textContent = "Loading collaboration requests…";
+        loadingRow.append(loadingCell);
+        els.collaborationTableBody.append(loadingRow);
         try {
           const { data, error } = await authClient.rpc("list_signing_requests");
           if (error) throw error;
           signingRequests = data || [];
           renderCollaborationRequests();
         } catch (error) {
-          els.collaborationList.replaceChildren();
-          const errorMessage = document.createElement("p");
-          errorMessage.className = "collaboration-empty";
-          errorMessage.textContent = "Couldn't load sign-off requests. Refresh to try again.";
-          els.collaborationList.append(errorMessage);
+          els.collaborationLoadError.textContent = error?.message || "Couldn't load collaboration requests. Refresh to try again.";
+          els.collaborationLoadError.hidden = false;
+          renderCollaborationRequests();
           showCollaborationError(error, "Sign-off requests could not be loaded.");
         }
       }
 
       function renderCollaborationRequests() {
-        els.collaborationList.replaceChildren();
-        if (!authUser) {
-          const empty = document.createElement("p");
-          empty.className = "collaboration-empty";
-          empty.textContent = "Sign in to view your requests.";
-          els.collaborationList.append(empty);
-          return;
-        }
-        if (!signingRequests.length) {
-          const empty = document.createElement("p");
-          empty.className = "collaboration-empty";
-          empty.textContent = "No sign-off requests yet.";
-          els.collaborationList.append(empty);
+        const pendingCount = signingRequests.filter((request) => request.status === "pending").length;
+        const approvedCount = signingRequests.filter((request) => request.status === "completed").length;
+        els.pendingRequestCount.textContent = String(pendingCount);
+        els.approvedRequestCount.textContent = String(approvedCount);
+        els.pendingRequestsTab.setAttribute("aria-selected", String(requestFilter === "pending"));
+        els.approvedRequestsTab.setAttribute("aria-selected", String(requestFilter === "approved"));
+        els.allRequestsTab.setAttribute("aria-selected", String(requestFilter === "all"));
+        const activeTab = requestFilter === "approved"
+          ? els.approvedRequestsTab
+          : requestFilter === "all" ? els.allRequestsTab : els.pendingRequestsTab;
+        $("collaborationTablePanel").setAttribute("aria-labelledby", activeTab.id);
+        els.collaborationTableBody.replaceChildren();
+
+        const visibleRequests = signingRequests.filter((request) => {
+          if (requestFilter === "pending") return request.status === "pending";
+          if (requestFilter === "approved") return request.status === "completed";
+          return true;
+        });
+        if (!authUser || !visibleRequests.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.className = "request-table-empty";
+          cell.colSpan = 5;
+          cell.textContent = !authUser
+            ? "Sign in to view collaboration requests."
+            : requestFilter === "pending"
+              ? "No pending sign-offs. New requests waiting for your approval will appear here."
+              : requestFilter === "approved"
+                ? "No approved sign-offs yet. Completed requests will appear here."
+                : "No collaboration requests yet.";
+          row.append(cell);
+          els.collaborationTableBody.append(row);
           return;
         }
 
-        for (const request of signingRequests) {
-          const item = document.createElement("article");
-          item.className = "collaboration-item";
-          const title = document.createElement("div");
-          title.className = "collaboration-item-title";
-          title.textContent = request.file_name;
-          const meta = document.createElement("div");
-          meta.className = "collaboration-item-meta";
+        for (const request of visibleRequests) {
+          const row = document.createElement("tr");
+          const documentCell = document.createElement("td");
+          const fileName = document.createElement("span");
+          fileName.className = "request-file";
+          fileName.textContent = request.file_name;
+          const createdAt = new Date(request.created_at);
+          const dateText = document.createElement("span");
+          dateText.className = "request-subtext";
+          dateText.textContent = Number.isNaN(createdAt.getTime())
+            ? "Date unavailable"
+            : `Created ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(createdAt)}`;
+          documentCell.append(fileName, dateText);
+
+          const requesterCell = document.createElement("td");
+          requesterCell.textContent = request.owner_id === authUser.id ? "You" : request.owner_name;
+
           const signers = Array.isArray(request.signers) ? request.signers : [];
-          const activeSigner = signers.find((signer) => signer.position === request.active_signer_position);
-          let statusText;
-          if (request.status === "completed") {
-            statusText = "Complete · Everyone has signed.";
-          } else if (request.status === "cancelled") {
-            statusText = "Cancelled.";
-          } else if (request.owner_id === authUser.id) {
-            statusText = `You requested sign-off · Waiting for ${activeSigner?.display_name || "the next signer"} (${request.active_signer_position} of ${request.signer_count}).`;
-          } else if (request.my_status === "signed") {
-            statusText = `You signed · Waiting for ${activeSigner?.display_name || "the next signer"} (${request.active_signer_position} of ${request.signer_count}).`;
-          } else if (request.my_position === request.active_signer_position) {
-            statusText = `Your turn to sign (${request.my_position} of ${request.signer_count}). Requested by ${request.owner_name}.`;
-          } else {
-            statusText = `Waiting for signer ${request.active_signer_position} of ${request.signer_count}. Requested by ${request.owner_name}.`;
+          const signedCount = signers.filter((signer) => signer.status === "signed").length;
+          const progressCell = document.createElement("td");
+          progressCell.textContent = `${signedCount} of ${request.signer_count} signed`;
+          if (request.status === "pending") {
+            const activeSigner = signers.find((signer) => signer.position === request.active_signer_position);
+            const progressNote = document.createElement("span");
+            progressNote.className = "request-subtext";
+            progressNote.textContent = request.owner_id === authUser.id
+              ? `Waiting for ${activeSigner?.display_name || "the next signer"}`
+              : request.my_status === "signed"
+                ? `Waiting for ${activeSigner?.display_name || "the next signer"}`
+                : request.my_position === request.active_signer_position
+                  ? "Waiting for your approval"
+                  : `Waiting for signer ${request.active_signer_position}`;
+            progressCell.append(progressNote);
           }
-          meta.textContent = statusText;
-          item.append(title, meta);
 
+          const statusCell = document.createElement("td");
+          const status = document.createElement("span");
+          status.className = `request-status${request.status === "completed" ? " approved" : request.status === "cancelled" ? " cancelled" : ""}`;
+          status.textContent = request.status === "completed"
+            ? "Approved"
+            : request.status === "cancelled" ? "Cancelled" : "Pending";
+          statusCell.append(status);
+
+          const actionCell = document.createElement("td");
           if (request.status === "completed") {
             const downloadButton = document.createElement("button");
             downloadButton.type = "button";
-            downloadButton.textContent = "Download completed PDF";
+            downloadButton.className = "request-action";
+            downloadButton.textContent = "Download PDF";
+            downloadButton.setAttribute("aria-label", `Download approved PDF ${request.file_name}`);
             downloadButton.addEventListener("click", () => downloadSigningRequest(request));
-            item.append(downloadButton);
+            actionCell.append(downloadButton);
           } else if (
             request.status === "pending" &&
             request.owner_id !== authUser.id &&
@@ -635,12 +748,27 @@
           ) {
             const signButton = document.createElement("button");
             signButton.type = "button";
-            signButton.textContent = "Open to sign";
+            signButton.className = "request-action";
+            signButton.textContent = "Review & sign";
             signButton.addEventListener("click", () => openSigningRequest(request, signButton));
-            item.append(signButton);
+            actionCell.append(signButton);
+          } else {
+            actionCell.textContent = "—";
           }
-          els.collaborationList.append(item);
+
+          row.append(documentCell, requesterCell, progressCell, statusCell, actionCell);
+          els.collaborationTableBody.append(row);
         }
+      }
+
+      function selectRequestFilter(filter, moveFocus = false) {
+        requestFilter = filter;
+        renderCollaborationRequests();
+        if (!moveFocus) return;
+        const activeTab = filter === "approved"
+          ? els.approvedRequestsTab
+          : filter === "all" ? els.allRequestsTab : els.pendingRequestsTab;
+        activeTab.focus();
       }
 
       async function searchSigningUsers(query) {
@@ -1390,6 +1518,29 @@
       els.downloadButton.addEventListener("click", exportSignedPdf);
       els.refreshRequests.addEventListener("click", () => void refreshCollaborationRequests());
       els.openRequestDialog.addEventListener("click", openRequestComposer);
+      els.pendingRequestsTab.addEventListener("click", () => selectRequestFilter("pending"));
+      els.approvedRequestsTab.addEventListener("click", () => selectRequestFilter("approved"));
+      els.allRequestsTab.addEventListener("click", () => selectRequestFilter("all"));
+      const requestTabs = [els.pendingRequestsTab, els.approvedRequestsTab, els.allRequestsTab];
+      requestTabs.forEach((tab, index) => {
+        tab.addEventListener("keydown", (event) => {
+          let nextIndex = index;
+          if (event.key === "ArrowRight") nextIndex = (index + 1) % requestTabs.length;
+          else if (event.key === "ArrowLeft") nextIndex = (index - 1 + requestTabs.length) % requestTabs.length;
+          else if (event.key === "Home") nextIndex = 0;
+          else if (event.key === "End") nextIndex = requestTabs.length - 1;
+          else return;
+          event.preventDefault();
+          requestTabs[nextIndex].click();
+          requestTabs[nextIndex].focus();
+        });
+      });
+      document.querySelectorAll(".main-nav a").forEach((link) => {
+        link.addEventListener("click", () => {
+          document.querySelectorAll(".main-nav a").forEach((navLink) => navLink.removeAttribute("aria-current"));
+          link.setAttribute("aria-current", "page");
+        });
+      });
       els.cancelRequestDialog.addEventListener("click", () => els.requestDialog.close());
       els.startRequestButton.addEventListener("click", submitSigningRequest);
       els.signerSearch.addEventListener("input", () => {
