@@ -74,38 +74,96 @@
     .switch-button:hover { text-decoration: underline; }
     .back-link { display: block; margin-top: 20px; color: var(--muted); text-align: center; text-decoration: none; font-size: 11px; }
     .back-link:hover { color: var(--green); }
-    @media (max-width: 480px) { .card { padding: 24px 20px; } }
+    body { position: relative; overflow-x: hidden; padding: 34px 0 0; background: radial-gradient(ellipse at 12% 8%, #e7eee4 0, transparent 38%), #f3f5f1; }
+    .login-shell { width: min(1080px, calc(100% - 64px)); display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(360px, .82fr); align-items: center; gap: clamp(42px, 7vw, 92px); }
+    .login-hero { position: relative; min-height: 490px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: clamp(34px, 5vw, 58px); border-radius: 24px; background: radial-gradient(ellipse at 90% 12%, rgba(183,208,150,.2), transparent 38%), linear-gradient(145deg, #173a2c, #285943 72%, #35664c); color: white; box-shadow: 0 22px 48px rgba(27,61,42,.17); }
+    .login-hero::before { position: absolute; top: -110px; right: -90px; width: 360px; height: 360px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; box-shadow: 0 0 0 34px rgba(255,255,255,.04), 0 0 0 74px rgba(255,255,255,.025); content: ""; }
+    .hero-mark { position: absolute; top: 38px; left: 40px; display: inline-flex; align-items: center; gap: 9px; color: #f8fbf5; font-size: 11px; font-weight: 700; letter-spacing: .8px; }
+    .hero-mark img { width: 38px; height: 29px; object-fit: contain; }
+    .hero-content { position: relative; z-index: 1; max-width: 450px; }
+    .hero-kicker { display: inline-flex; min-height: 28px; align-items: center; padding: 0 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 20px; background: rgba(255,255,255,.08); color: #dce8d4; font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+    .login-hero h2 { max-width: 420px; margin: 18px 0 12px; font-family: "Playfair Display", Georgia, serif; font-size: clamp(34px, 4.2vw, 48px); font-weight: 500; line-height: 1.08; letter-spacing: -1.2px; }
+    .login-hero > .hero-content > p { max-width: 390px; margin: 0; color: rgba(255,255,255,.75); font-size: 13px; line-height: 1.7; }
+    .hero-features { display: grid; gap: 15px; margin: 28px 0 0; padding: 0; list-style: none; }
+    .hero-features li { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.91); font-size: 11px; line-height: 1.4; }
+    .hero-check { width: 21px; height: 21px; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid rgba(221,236,211,.25); border-radius: 50%; background: rgba(255,255,255,.08); color: #dce8d4; font-size: 11px; }
+    .login-panel { width: 100%; }
+    .brand { justify-content: flex-start; margin: 0 0 20px 4px; }
+    .brand-name { font-size: 19px; }
+    .card { padding: 36px; border-color: #e5eae3; border-radius: 18px; box-shadow: 0 18px 42px rgba(31,43,36,.08); }
+    h1 { font-size: 34px; letter-spacing: -1px; }
+    .intro { margin-bottom: 23px; font-size: 12px; }
+    label { margin-top: 17px; color: #47544a; font-size: 11px; }
+    input { height: 47px; border-color: #dfe6dd; border-radius: 9px; background: #fcfdfb; transition: border .15s, box-shadow .15s, background .15s; }
+    input:focus { border-color: #74967b; background: #fff; box-shadow: 0 0 0 4px rgba(36,92,69,.09); }
+    .primary-button { min-height: 47px; margin-top: 22px; border-radius: 9px; box-shadow: 0 6px 14px rgba(36,92,69,.14); transition: background .15s, transform .15s, box-shadow .15s; }
+    .primary-button:hover { transform: translateY(-1px); box-shadow: 0 9px 18px rgba(36,92,69,.2); }
+    .switch-button { margin-top: 16px; font-size: 11px; }
+    .back-link { margin-top: 17px; }
+    .site-footer { background: rgba(255,255,253,.55); }
+    @media (max-width: 760px) {
+      body { padding-top: 24px; }
+      .login-shell { width: min(500px, calc(100% - 36px)); grid-template-columns: 1fr; gap: 26px; }
+      .login-panel { order: 1; }
+      .login-hero { order: 2; min-height: 360px; padding: 36px; border-radius: 20px; }
+      .hero-mark { top: 24px; left: 27px; }
+      .site-footer { margin-top: 30px; }
+    }
+    @media (max-width: 480px) {
+      .card { padding: 27px 22px; }
+      .login-hero { min-height: 340px; padding: 29px 24px; }
+      .hero-mark { top: 21px; left: 22px; }
+      .login-hero h2 { font-size: 36px; }
+    }
   </style>
 </head>
 <body>
   <main class="login-shell">
-    <div class="brand" aria-label="EFFICIENT SIGN">
-      <img class="brand-logo" src="efficient-engineering-mark.png" alt="Efficient Engineering logo">
-      <span class="brand-name">EFFICIENT SIGN</span>
+    <aside class="login-hero" aria-label="Efficient Sign features">
+      <div class="hero-mark">
+        <img src="efficient-engineering-mark.png" alt="">
+        <span>EFFICIENT SIGN</span>
+      </div>
+      <div class="hero-content">
+        <div class="hero-kicker">Simple. Secure. Together.</div>
+        <h2>A clear path from document to done.</h2>
+        <p>Prepare your PDF, add your signature, and keep every sign-off moving in one place.</p>
+        <ul class="hero-features">
+          <li><span class="hero-check" aria-hidden="true">✓</span> A personal signature ready when you are</li>
+          <li><span class="hero-check" aria-hidden="true">✓</span> Invite colleagues for sequential approval</li>
+          <li><span class="hero-check" aria-hidden="true">✓</span> Keep shared documents private</li>
+        </ul>
+      </div>
+    </aside>
+    <div class="login-panel">
+      <div class="brand" aria-label="EFFICIENT SIGN">
+        <img class="brand-logo" src="efficient-engineering-mark.png" alt="Efficient Engineering logo">
+        <span class="brand-name">EFFICIENT SIGN</span>
+      </div>
+      <section class="card" aria-labelledby="heading">
+        <h1 id="heading">Welcome back.</h1>
+        <p id="intro" class="intro">Sign in to create and place your signature.</p>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <form id="authForm">
+          <div id="nameFields" class="name-fields" hidden>
+            <label for="firstName">First name
+              <input id="firstName" type="text" autocomplete="given-name" maxlength="60" placeholder="First name" required disabled>
+            </label>
+            <label for="lastName">Surname
+              <input id="lastName" type="text" autocomplete="family-name" maxlength="60" placeholder="Surname" required disabled>
+            </label>
+          </div>
+          <p id="signatureNote" class="signature-note" hidden>Your first name and surname will appear in your PDF signature.</p>
+          <label id="emailLabel" for="email">Email address</label>
+          <input id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
+          <label id="passwordLabel" for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="Password" required>
+          <button id="submitButton" class="primary-button" type="submit">Sign in</button>
+        </form>
+        <button id="switchButton" class="switch-button" type="button">New here? Create an account</button>
+        <a class="back-link" href="index.html">Back to PDF signing</a>
+      </section>
     </div>
-    <section class="card" aria-labelledby="heading">
-      <h1 id="heading">Welcome back.</h1>
-      <p id="intro" class="intro">Sign in to create and place your signature.</p>
-      <p id="message" class="message" role="status" aria-live="polite"></p>
-      <form id="authForm">
-        <div id="nameFields" class="name-fields" hidden>
-          <label for="firstName">First name
-            <input id="firstName" type="text" autocomplete="given-name" maxlength="60" placeholder="First name" required disabled>
-          </label>
-          <label for="lastName">Surname
-            <input id="lastName" type="text" autocomplete="family-name" maxlength="60" placeholder="Surname" required disabled>
-          </label>
-        </div>
-        <p id="signatureNote" class="signature-note" hidden>Your first name and surname will appear in your PDF signature.</p>
-        <label id="emailLabel" for="email">Email address</label>
-        <input id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
-        <label id="passwordLabel" for="password">Password</label>
-        <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="Password" required>
-        <button id="submitButton" class="primary-button" type="submit">Sign in</button>
-      </form>
-      <button id="switchButton" class="switch-button" type="button">New here? Create an account</button>
-      <a class="back-link" href="index.html">Back to PDF signing</a>
-    </section>
   </main>
   <footer class="site-footer">Developed by Vincent Mlauzi</footer>
   <script>
