@@ -182,7 +182,10 @@
         requestTableBody: $("requestTableBody"),
         loadError: $("loadError")
       };
-      const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle);
+      const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle, {
+        supabaseUrl: SUPABASE_URL,
+        getAuthClient: () => authClient,
+      });
 
       let authClient = null;
       let authUser = null;
@@ -257,7 +260,6 @@
       function updateNotifications(nextRequests) {
         const nextSnapshot = Object.create(null);
         const visibleIds = new Set();
-        const changedRequests = [];
         for (const request of nextRequests) {
           const id = request.request_id;
           if (typeof id !== "string") continue;
@@ -268,33 +270,13 @@
             (!Object.prototype.hasOwnProperty.call(notificationSnapshot, id) || notificationSnapshot[id] !== signature)
           ) {
             unreadRequestIds.add(id);
-            changedRequests.push({ request, signature });
           }
           nextSnapshot[id] = signature;
         }
         unreadRequestIds = new Set([...unreadRequestIds].filter((id) => visibleIds.has(id)));
         notificationSnapshot = nextSnapshot;
-        unreadRequestIds.clear();
         saveNotifications();
         renderNotificationBadge();
-        for (const { request, signature } of changedRequests) {
-          const fileName = request.file_name || "a document";
-          const title = request.status === "completed"
-            ? "Sign-off complete"
-            : request.status === "cancelled"
-              ? "Sign-off request cancelled"
-              : request.my_status === "pending" && request.my_position === request.active_signer_position
-                ? "Your sign-off is ready"
-                : "Sign-off progress updated";
-          const body = request.status === "completed"
-            ? `All signers have approved ${fileName}.`
-            : request.status === "cancelled"
-              ? `${fileName} was cancelled.`
-              : request.my_status === "pending" && request.my_position === request.active_signer_position
-                ? `Your approval is requested for ${fileName}.`
-                : `Signing progress changed for ${fileName}.`;
-          browserNotifications.show(authUser?.id, request.request_id, signature, title, body);
-        }
       }
 
       function initializeAuth() {
@@ -531,6 +513,7 @@
         if (!authClient) return;
         els.signOutButton.disabled = true;
         try {
+          await browserNotifications.disable();
           const { error } = await authClient.auth.signOut();
           if (error) throw error;
           setSignedInUser(null);

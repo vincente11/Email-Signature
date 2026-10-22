@@ -439,7 +439,10 @@
         loading: $("loading"),
         toast: $("toast")
       };
-      const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle);
+      const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle, {
+        supabaseUrl: SUPABASE_URL,
+        getAuthClient: () => authClient,
+      });
 
       let pdfDocument = null;
       let originalPdfBytes = null;
@@ -683,7 +686,6 @@
       function updateRequestNotificationState(requests) {
         const nextSnapshot = Object.create(null);
         const visibleRequestIds = new Set();
-        const changedRequests = [];
         for (const request of requests) {
           const requestId = request.request_id;
           if (typeof requestId !== "string") continue;
@@ -695,7 +697,6 @@
               notificationSnapshot[requestId] !== signature)
           ) {
             unreadRequestIds.add(requestId);
-            changedRequests.push({ request, signature });
           }
           nextSnapshot[requestId] = signature;
         }
@@ -704,24 +705,6 @@
         notificationSnapshot = nextSnapshot;
         saveRequestNotificationState();
         renderRequestNotificationBadge();
-        for (const { request, signature } of changedRequests) {
-          const fileName = request.file_name || "a document";
-          const title = request.status === "completed"
-            ? "Sign-off complete"
-            : request.status === "cancelled"
-              ? "Sign-off request cancelled"
-              : request.my_status === "pending" && request.my_position === request.active_signer_position
-                ? "Your sign-off is ready"
-                : "Sign-off progress updated";
-          const body = request.status === "completed"
-            ? `All signers have approved ${fileName}.`
-            : request.status === "cancelled"
-              ? `${fileName} was cancelled.`
-              : request.my_status === "pending" && request.my_position === request.active_signer_position
-                ? `Your approval is requested for ${fileName}.`
-                : `Signing progress changed for ${fileName}.`;
-          browserNotifications.show(notificationUserId, request.request_id, signature, title, body);
-        }
       }
 
       function renderRequestNotificationBadge() {
@@ -1554,6 +1537,7 @@
         if (!authClient) return;
         els.authSignOut.disabled = true;
         try {
+          await browserNotifications.disable();
           const { error } = await authClient.auth.signOut();
           if (error) throw error;
           setAuthUser(null);
