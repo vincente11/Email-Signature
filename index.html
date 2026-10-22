@@ -129,6 +129,7 @@
     .signature-stamp.visible { display: flex; }
     .signature-stamp.selected { border: 1px dashed rgba(36, 92, 69, .65); background: rgba(220, 237, 222, .13); }
     .signature-stamp img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+    .stamp-resize-handle { position: absolute; right: -5px; bottom: -5px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 4px; background: var(--green); box-shadow: 0 0 0 1px rgba(36, 92, 69, .45); cursor: nwse-resize; }
     .stamp-tip { position: absolute; top: -22px; left: 50%; display: none; padding: 4px 7px; transform: translateX(-50%); border-radius: 4px; background: #273a2f; color: white; font-size: 8px; line-height: 1; white-space: nowrap; }
     .signature-stamp.selected .stamp-tip { display: block; }
     .stage-message { display: none; max-width: 360px; margin: 12px auto 0; color: #828b85; font-size: 10px; text-align: center; line-height: 1.55; }
@@ -264,9 +265,10 @@
             <div id="stageContent" class="stage-content" hidden>
               <div id="pageWrap" class="page-wrap">
                 <canvas id="pdfCanvas"></canvas>
-                <div id="signatureStamp" class="signature-stamp" role="button" tabindex="0" aria-label="Placed signature; drag to reposition">
-                  <span class="stamp-tip">Drag to reposition</span>
+                <div id="signatureStamp" class="signature-stamp" role="button" tabindex="0" aria-label="Placed signature; drag to reposition. Use the corner handle to resize; Control plus arrow keys also resize.">
+                  <span class="stamp-tip">Drag to move · resize from corner</span>
                   <img id="stampImage" alt="">
+                  <span class="stamp-resize-handle" aria-hidden="true"></span>
                 </div>
               </div>
               <div id="stageMessage" class="stage-message">Click on the page to place your signature, then drag to adjust.</div>
@@ -723,16 +725,15 @@
           els.signatureStamp.classList.remove("visible", "selected");
           return;
         }
-        let width = stampPlacement.widthRatio * els.pageWrap.clientWidth;
-        let height = width / signatureAspectRatio();
-        if (height > els.pageWrap.clientHeight * 0.25) {
-          height = els.pageWrap.clientHeight * 0.25;
-          width = height * signatureAspectRatio();
-          stampPlacement.widthRatio = width / els.pageWrap.clientWidth;
-        }
+        const aspectRatio = signatureAspectRatio();
+        let width = Math.min(
+          stampPlacement.widthRatio * els.pageWrap.clientWidth,
+          els.pageWrap.clientWidth * (1 - stampPlacement.leftRatio),
+          els.pageWrap.clientHeight * (1 - stampPlacement.topRatio) * aspectRatio
+        );
+        const height = width / aspectRatio;
+        stampPlacement.widthRatio = width / els.pageWrap.clientWidth;
         stampPlacement.heightRatio = height / els.pageWrap.clientHeight;
-        stampPlacement.leftRatio = Math.min(stampPlacement.leftRatio, 1 - stampPlacement.widthRatio);
-        stampPlacement.topRatio = Math.min(stampPlacement.topRatio, 1 - stampPlacement.heightRatio);
         els.signatureStamp.style.left = `${stampPlacement.leftRatio * els.pageWrap.clientWidth}px`;
         els.signatureStamp.style.top = `${stampPlacement.topRatio * els.pageWrap.clientHeight}px`;
         els.signatureStamp.style.width = `${width}px`;
@@ -756,23 +757,53 @@
       function setupStampDragging() {
         let pointerId = null;
         let origin = null;
+        let resizeStart = null;
         els.signatureStamp.addEventListener("pointerdown", (event) => {
           if (!stampPlacement || stampPlacement.pageNumber !== currentPageNumber) return;
           event.preventDefault();
           event.stopPropagation();
           pointerId = event.pointerId;
           const stampRect = els.signatureStamp.getBoundingClientRect();
-          origin = { x: event.clientX - stampRect.left, y: event.clientY - stampRect.top };
+          if (event.target.closest(".stamp-resize-handle")) {
+            resizeStart = {
+              x: event.clientX,
+              y: event.clientY,
+              width: stampRect.width,
+              aspectRatio: signatureAspectRatio()
+            };
+            origin = null;
+          } else {
+            origin = { x: event.clientX - stampRect.left, y: event.clientY - stampRect.top };
+            resizeStart = null;
+          }
           els.signatureStamp.setPointerCapture(pointerId);
         });
         els.signatureStamp.addEventListener("pointermove", (event) => {
-          if (pointerId !== event.pointerId || !origin) return;
-          updateStampFromPointer(event, origin);
+          if (pointerId !== event.pointerId) return;
+          if (resizeStart) {
+            const left = stampPlacement.leftRatio * els.pageWrap.clientWidth;
+            const top = stampPlacement.topRatio * els.pageWrap.clientHeight;
+            const maxWidth = Math.min(
+              els.pageWrap.clientWidth - left,
+              (els.pageWrap.clientHeight - top) * resizeStart.aspectRatio
+            );
+            const minWidth = Math.min(60, maxWidth);
+            const width = Math.max(minWidth, Math.min(
+              maxWidth,
+              resizeStart.width + (event.clientX - resizeStart.x)
+            ));
+            stampPlacement.widthRatio = width / els.pageWrap.clientWidth;
+            stampPlacement.heightRatio = (width / resizeStart.aspectRatio) / els.pageWrap.clientHeight;
+            renderStamp();
+          } else if (origin) {
+            updateStampFromPointer(event, origin);
+          }
         });
         const stop = (event) => {
           if (pointerId !== event.pointerId) return;
           pointerId = null;
           origin = null;
+          resizeStart = null;
         };
         els.signatureStamp.addEventListener("pointerup", stop);
         els.signatureStamp.addEventListener("pointercancel", stop);
@@ -781,6 +812,22 @@
           const step = event.shiftKey ? 10 : 2;
           if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
           event.preventDefault();
+          if (event.ctrlKey) {
+            const aspectRatio = signatureAspectRatio();
+            const left = stampPlacement.leftRatio * els.pageWrap.clientWidth;
+            const top = stampPlacement.topRatio * els.pageWrap.clientHeight;
+            const currentWidth = stampPlacement.widthRatio * els.pageWrap.clientWidth;
+            const maxWidth = Math.min(
+              els.pageWrap.clientWidth - left,
+              (els.pageWrap.clientHeight - top) * aspectRatio
+            );
+            const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+            const width = Math.max(Math.min(60, maxWidth), Math.min(maxWidth, currentWidth + direction * step));
+            stampPlacement.widthRatio = width / els.pageWrap.clientWidth;
+            stampPlacement.heightRatio = (width / aspectRatio) / els.pageWrap.clientHeight;
+            renderStamp();
+            return;
+          }
           const maxLeft = Math.max(0, 1 - stampPlacement.widthRatio);
           const maxTop = Math.max(0, 1 - stampPlacement.heightRatio);
           if (event.key === "ArrowLeft") stampPlacement.leftRatio = Math.max(0, stampPlacement.leftRatio - step / els.pageWrap.clientWidth);
