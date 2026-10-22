@@ -92,32 +92,10 @@
     .icon-button { width: 29px; height: 29px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #848d87; cursor: pointer; }
     .icon-button:hover { background: #f1f3ef; color: var(--ink); }
     .divider { height: 1px; margin: 0 0 21px; background: var(--line); }
-    .method-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 4px; margin-bottom: 16px; background: #f4f5f2; border-radius: 9px; }
-    .method-tab { height: 33px; border: 0; border-radius: 7px; background: transparent; color: #7a837d; font-size: 11px; font-weight: 600; cursor: pointer; }
-    .method-tab[aria-selected="true"] { background: white; color: var(--green); box-shadow: 0 1px 4px rgba(0, 0, 0, .09); }
-    .signature-panel { min-height: 151px; }
-    .draw-pad { position: relative; height: 118px; overflow: hidden; border: 1px dashed #d8ddd7; border-radius: 9px; background: #fdfdfb; touch-action: none; }
-    .draw-pad::after { position: absolute; right: 12px; bottom: 10px; left: 12px; height: 1px; background: #eaede8; content: ""; pointer-events: none; }
-    #drawCanvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
-    .draw-hint { position: absolute; top: 42%; left: 0; width: 100%; color: #b0b7b1; text-align: center; font-size: 11px; pointer-events: none; }
-    .typed-input { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #dfe3dd; border-radius: 8px; outline: none; font-size: 14px; }
-    .typed-input:focus { border-color: #84a993; box-shadow: 0 0 0 3px rgba(36, 92, 69, .08); }
-    .signature-details { display: grid; gap: 10px; margin: 12px 0 8px; }
-    .detail-label { display: block; margin-bottom: 5px; color: #737c76; font-size: 10px; font-weight: 600; }
-    .signature-details .typed-input { height: 39px; font-size: 12px; }
-    .signature-details .typed-input[readonly] { background: #f6f7f4; color: #59645d; cursor: default; }
-    .font-select-label { display: block; margin: 12px 0 6px; color: #737c76; font-size: 10px; font-weight: 600; }
-    .font-options { display: flex; gap: 7px; }
-    .font-option { width: 42px; height: 31px; border: 1px solid var(--line); border-radius: 7px; background: white; color: #5b655f; font-size: 16px; cursor: pointer; }
-    .font-option.selected { border-color: #8aab97; color: var(--green); background: #f1f7f2; }
-    .font-option[data-font="cursive"] { font-family: "Playfair Display", Georgia, serif; font-style: italic; }
-    .font-option[data-font="serif"] { font-family: Georgia, serif; }
-    .font-option[data-font="sans"] { font-family: Arial, sans-serif; font-size: 14px; }
+    .signature-account-note { margin: 0 0 14px; color: var(--muted); font-size: 11px; line-height: 1.6; }
     .signature-preview { display: none; max-width: 100%; height: 145px; margin: 0 auto; object-fit: contain; }
     .signature-preview.visible { display: block; }
-    .draw-controls { display: flex; justify-content: flex-end; margin-top: 7px; }
-    .text-button { padding: 4px 0; border: 0; background: none; color: #77817a; font-size: 10px; cursor: pointer; }
-    .text-button:hover { color: var(--green); }
+    .profile-link { display: block; margin-top: 9px; color: var(--green); font-size: 10px; text-decoration: underline; }
 
     .place-guide { display: flex; gap: 9px; align-items: flex-start; margin: 12px 0 16px; padding: 11px 10px; border-radius: 9px; background: #f5f7f2; color: #637067; font-size: 10px; line-height: 1.5; }
     .place-guide svg { flex: 0 0 auto; margin-top: 1px; color: var(--green); }
@@ -207,6 +185,7 @@
             <h2 id="authHeading" class="auth-heading">Your signer account</h2>
             <p id="authMessage" class="auth-message" role="status">Checking your account…</p>
             <a id="authLink" class="primary-button auth-submit auth-link" href="login.html">Sign in or create account</a>
+            <a id="profileLink" class="profile-link" href="login.html?complete-profile=1" hidden>Update name on account</a>
             <button id="authSignOut" class="primary-button auth-submit" type="button" hidden>Sign out</button>
           </section>
           <div class="step-label">Step 01</div>
@@ -230,35 +209,8 @@
           <div style="height: 22px"></div>
           <div class="divider"></div>
           <div class="step-label">Step 02</div>
-          <h2 class="step-heading" style="margin-bottom: 14px">Create your signature</h2>
-          <div class="method-tabs" role="tablist" aria-label="Signature method">
-            <button class="method-tab" id="drawTab" type="button" role="tab" aria-selected="true">Draw</button>
-            <button class="method-tab" id="typeTab" type="button" role="tab" aria-selected="false">Type</button>
-          </div>
-
-          <div id="drawPanel" class="signature-panel" role="tabpanel" aria-labelledby="drawTab">
-            <div class="draw-pad">
-              <canvas id="drawCanvas" aria-label="Draw your signature here"></canvas>
-              <span id="drawHint" class="draw-hint">Sign here using your mouse or finger</span>
-            </div>
-            <div class="draw-controls"><button id="clearDraw" class="text-button" type="button">Clear signature</button></div>
-          </div>
-          <div id="typePanel" class="signature-panel" role="tabpanel" aria-labelledby="typeTab" hidden>
-            <input id="typedName" class="typed-input" type="text" maxlength="60" autocomplete="name" placeholder="Type your full name" aria-label="Type your signature">
-            <span class="font-select-label">Choose a style</span>
-            <div class="font-options" aria-label="Signature font">
-              <button class="font-option selected" type="button" data-font="cursive" aria-label="Cursive style">Aa</button>
-              <button class="font-option" type="button" data-font="serif" aria-label="Serif style">Aa</button>
-              <button class="font-option" type="button" data-font="sans" aria-label="Sans serif style">Aa</button>
-            </div>
-          </div>
-          <div class="signature-details">
-            <label>
-              <span class="detail-label">Date signed</span>
-              <input id="signedDate" class="typed-input" type="text" value="Set when placed" readonly aria-label="Date signed">
-            </label>
-          </div>
-          <p id="signatureAuthHint" class="signature-auth-hint">Sign in with a confirmed email to create your signature.</p>
+          <h2 class="step-heading">Your account signature</h2>
+          <p id="signatureAuthHint" class="signature-account-note">Sign in with a saved first and last name to use your account signature.</p>
           <img id="signaturePreview" class="signature-preview" alt="Signature preview">
 
           <div class="sidebar-bottom">
@@ -337,12 +289,14 @@
       const PDFJS_VERSION = "3.11.174";
       const SUPABASE_URL = "https://mvfnycefnmpwtuoajliq.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_-_KnKaBRJLvTl2VLfNWTXA_FFpZvqcr";
+      const COMPANY_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAa4AAAB/CAMAAACAPtaWAAAC9FBMVEUAAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////9JxXEjAAAA+3RSTlMAPIVGFhkDPXJxRxE0Gh8xdIYqLwFf31rdiXUhYzJeBaQEn5qUSED+78EkwNNmudVoWEsmE/1MD/pVPjgiu7wlHb9JFQ1NhKrCzMqhdjoHRH6ovXxDCAJpi5mH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";
       const companyLogo = new Image();
       const $ = (id) => document.getElementById(id);
 
       const els = {
         authMessage: $("authMessage"),
         authLink: $("authLink"),
+        profileLink: $("profileLink"),
         authSignOut: $("authSignOut"),
         choosePdf: $("choosePdf"),
         emptyUpload: $("emptyUpload"),
@@ -352,17 +306,7 @@
         fileSize: $("fileSize"),
         choosePdfLabel: $("choosePdfLabel"),
         removeFile: $("removeFile"),
-        drawTab: $("drawTab"),
-        typeTab: $("typeTab"),
-        drawPanel: $("drawPanel"),
-        typePanel: $("typePanel"),
-        drawCanvas: $("drawCanvas"),
-        drawHint: $("drawHint"),
-        clearDraw: $("clearDraw"),
-        typedName: $("typedName"),
-        signedDate: $("signedDate"),
         signatureAuthHint: $("signatureAuthHint"),
-        fontOptions: document.querySelectorAll(".font-option"),
         signaturePreview: $("signaturePreview"),
         downloadButton: $("downloadButton"),
         documentArea: $("documentArea"),
@@ -392,14 +336,10 @@
       let zoom = 1;
       let renderTask = null;
       let renderGeneration = 0;
-      let activeTab = "draw";
-      let activeFont = "cursive";
       let signatureDataUrl = null;
       let signedAt = new Date();
       let authClient = null;
       let authUser = null;
-      let hasDrawn = false;
-      let isDrawing = false;
       let stampPlacement = null;
       let toastTimer = null;
       let resizeTimer = null;
@@ -442,12 +382,27 @@
           authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
           els.authMessage.textContent = "Checking your account…";
           setAuthUser(null);
-          authClient.auth.onAuthStateChange((_event, session) => {
+          authClient.auth.onAuthStateChange((event, session) => {
+            if (event === "INITIAL_SESSION") return;
             setAuthUser(session?.user || null);
           });
-          authClient.auth.getSession().then(({ data, error }) => {
+          authClient.auth.getSession().then(async ({ data, error }) => {
             if (error) throw error;
-            setAuthUser(data.session?.user || null);
+            if (!data.session) {
+              setAuthUser(null);
+              return;
+            }
+
+            const { data: userData, error: userError } = await authClient.auth.getUser();
+            if (userError) {
+              console.error("Saved Supabase session is invalid:", userError);
+              const { error: signOutError } = await authClient.auth.signOut({ scope: "local" });
+              if (signOutError) throw signOutError;
+              setAuthUser(null);
+              els.authMessage.textContent = "Your saved session belongs to an account that no longer exists. Sign in with the account shown in Supabase.";
+              return;
+            }
+            setAuthUser(userData.user);
           }).catch((error) => {
             console.error("Supabase session restore failed:", error);
             els.authMessage.textContent = `Couldn't restore your session: ${error.message}`;
@@ -461,13 +416,7 @@
       }
 
       function clearSignatureDraft() {
-        const context = els.drawCanvas.getContext("2d");
-        context.clearRect(0, 0, els.drawCanvas.width, els.drawCanvas.height);
-        hasDrawn = false;
-        els.drawHint.hidden = false;
-        els.typedName.value = "";
         signedAt = new Date();
-        els.signedDate.value = "Set when placed";
         signatureDataUrl = null;
         els.signaturePreview.classList.remove("visible");
         els.signaturePreview.removeAttribute("src");
@@ -479,37 +428,44 @@
         const previousUserId = authUser?.id || null;
         authUser = user;
         const userChanged = previousUserId !== (user?.id || null);
-        const emailConfirmed = Boolean(user?.email && user.email_confirmed_at);
+        const hasAccountEmail = Boolean(user?.email);
+        const signerName = getSignerName(user);
+        const hasSignerName = Boolean(signerName);
         if (userChanged) clearSignatureDraft();
 
         els.authLink.hidden = Boolean(user);
+        els.profileLink.hidden = !user || hasSignerName;
         els.authSignOut.hidden = !user;
 
         if (!user) {
           els.authMessage.textContent = authClient
-            ? "Sign in with a confirmed email to create your signature."
+            ? "Sign in to create your account signature."
             : "Set SUPABASE_URL and SUPABASE_ANON_KEY to enable accounts.";
-        } else if (emailConfirmed) {
-          els.authMessage.textContent = `Signed in as ${user.email}. Your verified email will be included in the signature.`;
+        } else if (!hasSignerName) {
+          els.authMessage.textContent = `Signed in as ${user.email}, but your account needs a first name and surname before you can sign.`;
         } else {
-          els.authMessage.textContent = `Confirm the email sent to ${user.email} before signing.`;
+          els.authMessage.textContent = `Signed in as ${user.email}. Your account name, email, and signing date will be included in the signature.`;
         }
 
-        const canSign = Boolean(authClient && emailConfirmed);
+        const canSign = Boolean(authClient && hasAccountEmail && hasSignerName);
         els.signatureAuthHint.hidden = canSign;
-        els.drawTab.disabled = !canSign;
-        els.typeTab.disabled = !canSign;
-        els.drawCanvas.style.pointerEvents = canSign ? "auto" : "none";
-        els.drawCanvas.style.opacity = canSign ? "1" : ".45";
-        els.clearDraw.disabled = !canSign;
-        els.typedName.disabled = !canSign;
-        els.fontOptions.forEach((option) => { option.disabled = !canSign; });
         if (!canSign) {
           els.downloadButton.disabled = true;
           resetPlacement();
         } else {
           syncSignature();
         }
+      }
+
+      function getSignerName(user) {
+        const metadata = user?.user_metadata || {};
+        const firstName = typeof metadata.first_name === "string" ? metadata.first_name.trim() : "";
+        const lastName = typeof metadata.last_name === "string" ? metadata.last_name.trim() : "";
+        return [firstName, lastName].filter(Boolean).join(" ") ||
+          (typeof metadata.display_name === "string" ? metadata.display_name.trim() : "") ||
+          (typeof metadata.displayName === "string" ? metadata.displayName.trim() : "") ||
+          (typeof metadata.full_name === "string" ? metadata.full_name.trim() : "") ||
+          (typeof metadata.name === "string" ? metadata.name.trim() : "");
       }
 
       function setLoading(isLoading, message = "Loading your document…") {
@@ -730,16 +686,19 @@
       }
 
       function placeStamp(event) {
-        if (!authUser?.email_confirmed_at) {
-          showToast("Sign in with a confirmed email before placing your signature.");
+        if (!authUser?.email) {
+          showToast("Sign in before placing your account signature.");
+          return;
+        }
+        if (!getSignerName(authUser)) {
+          showToast("Add your first name and surname to your account before signing.");
           return;
         }
         if (!signatureDataUrl || !pdfDocument) {
-          showToast("Create a signature first, then click on the document to place it.");
+          showToast("Your account signature is still loading. Please try again in a moment.");
           return;
         }
         signedAt = new Date();
-        els.signedDate.value = formatSignedDate(signedAt);
         syncSignature();
         const point = pointOnCanvas(event);
         const dimensions = stampDimensions();
@@ -832,130 +791,31 @@
         });
       }
 
-      function selectTab(tab) {
-        activeTab = tab;
-        const draw = tab === "draw";
-        els.drawTab.setAttribute("aria-selected", String(draw));
-        els.typeTab.setAttribute("aria-selected", String(!draw));
-        els.drawPanel.hidden = !draw;
-        els.typePanel.hidden = draw;
-        syncSignature();
-        if (draw) resizeDrawCanvas();
-      }
-
-      function resizeDrawCanvas() {
-        const canvas = els.drawCanvas;
-        const rect = canvas.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        const previous = hasDrawn ? canvas.toDataURL("image/png") : null;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        canvas.width = Math.round(rect.width * dpr);
-        canvas.height = Math.round(rect.height * dpr);
-        const context = canvas.getContext("2d");
-        context.setTransform(dpr, 0, 0, dpr, 0, 0);
-        context.lineCap = "round";
-        context.lineJoin = "round";
-        context.strokeStyle = "#203c2d";
-        context.lineWidth = 2.5;
-        if (previous) {
-          const image = new Image();
-          image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height);
-          image.src = previous;
-        }
-      }
-
-      function drawCoordinates(event) {
-        const rect = els.drawCanvas.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      }
-
-      function beginDraw(event) {
-        event.preventDefault();
-        isDrawing = true;
-        els.drawCanvas.setPointerCapture(event.pointerId);
-        const point = drawCoordinates(event);
-        const context = els.drawCanvas.getContext("2d");
-        context.beginPath();
-        context.moveTo(point.x, point.y);
-        context.lineTo(point.x + 0.01, point.y + 0.01);
-        context.stroke();
-        hasDrawn = true;
-        els.drawHint.hidden = true;
-        syncSignature();
-      }
-
-      function continueDraw(event) {
-        if (!isDrawing) return;
-        event.preventDefault();
-        const point = drawCoordinates(event);
-        const context = els.drawCanvas.getContext("2d");
-        context.lineTo(point.x, point.y);
-        context.stroke();
-        syncSignature();
-      }
-
-      function endDraw() {
-        isDrawing = false;
-        syncSignature();
-      }
-
-      function clearDraw() {
-        const context = els.drawCanvas.getContext("2d");
-        context.clearRect(0, 0, els.drawCanvas.width, els.drawCanvas.height);
-        hasDrawn = false;
-        els.drawHint.hidden = false;
-        syncSignature();
-      }
-
-      function typedSignatureCanvas() {
-        const name = els.typedName.value.trim();
-        if (!name) return null;
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        const fontFamily = activeFont === "cursive" ? '"Playfair Display", Georgia, serif'
-          : activeFont === "serif" ? "Georgia, serif" : "Arial, sans-serif";
-        const fontStyle = activeFont === "cursive" ? "italic " : "";
-        const fontSize = 50;
-        context.font = `${fontStyle}${fontSize}px ${fontFamily}`;
-        const textWidth = Math.ceil(context.measureText(name).width);
-        canvas.width = Math.max(160, textWidth + 26);
-        canvas.height = 92;
-        context.font = `${fontStyle}${fontSize}px ${fontFamily}`;
-        context.fillStyle = "#203c2d";
-        context.textBaseline = "middle";
-        context.fillText(name, 12, 45);
-        return canvas;
-      }
-
-      function composeSignature(markCanvas, signerEmail, date) {
+      function composeSignature(signerName, signerEmail, date) {
         const scale = 2;
-        const signatureHeight = 62;
-        const markAspectRatio = markCanvas.width / markCanvas.height;
-        const signatureWidth = Math.min(360, signatureHeight * markAspectRatio);
         const logoWidth = 180;
         const logoHeight = logoWidth * companyLogo.naturalHeight / companyLogo.naturalWidth;
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
+        context.font = 'italic 34px "Playfair Display", Georgia, serif';
+        const signerNameWidth = signerName ? context.measureText(signerName).width : 0;
         context.font = '11px "DM Sans", sans-serif';
-        const emailText = `Signed by ${signerEmail}`;
-        const emailWidth = context.measureText(emailText).width;
+        const declarationText = `I, ${signerName}, declare that I have signed this document.`;
+        const declarationWidth = context.measureText(declarationText).width;
+        const emailWidth = context.measureText(signerEmail).width;
         const dateText = `Signed on ${formatSignedDate(date)}`;
         const dateWidth = context.measureText(dateText).width;
         const width = Math.ceil(Math.min(
           900,
-          Math.max(220, signatureWidth + 24, logoWidth + 24, emailWidth + 24, dateWidth + 24)
+          Math.max(220, logoWidth + 24, signerNameWidth + 24, declarationWidth + 24, emailWidth + 24, dateWidth + 24)
         ));
         canvas.width = width * scale;
-        canvas.height = 180 * scale;
+        canvas.height = 200 * scale;
         context.scale(scale, scale);
-        const renderedMarkHeight = signatureWidth / markAspectRatio;
-        context.drawImage(
-          markCanvas,
-          12,
-          5 + (signatureHeight - renderedMarkHeight) / 2,
-          signatureWidth,
-          renderedMarkHeight
-        );
+        context.fillStyle = "#203c2d";
+        context.textBaseline = "alphabetic";
+        context.font = 'italic 34px "Playfair Display", Georgia, serif';
+        context.fillText(signerName, 12, 55, width - 24);
         context.strokeStyle = "#dfe5de";
         context.lineWidth = 1;
         context.beginPath();
@@ -968,29 +828,27 @@
         context.fillStyle = "#66736a";
         context.textBaseline = "alphabetic";
         context.font = '11px "DM Sans", sans-serif';
-        context.fillText(emailText, 12, 151);
-        context.fillText(dateText, 12, 169);
+        context.fillText(declarationText, 12, 151, width - 24);
+        context.fillText(signerEmail, 12, 169, width - 24);
+        context.fillText(dateText, 12, 187);
         return canvas.toDataURL("image/png");
       }
 
       function syncSignature() {
-        const markCanvas = activeTab === "draw"
-          ? (hasDrawn ? els.drawCanvas : null)
-          : typedSignatureCanvas();
-        const signerEmail = authUser?.email_confirmed_at ? authUser.email : "";
-        const nextData = markCanvas && signerEmail && companyLogo.complete && companyLogo.naturalWidth
-          ? composeSignature(markCanvas, signerEmail, signedAt)
+        const signerEmail = authUser?.email || "";
+        const signerName = getSignerName(authUser);
+        const nextData = signerName && signerEmail && companyLogo.complete && companyLogo.naturalWidth
+          ? composeSignature(signerName, signerEmail, signedAt)
           : null;
         const wasAvailable = Boolean(signatureDataUrl);
         signatureDataUrl = nextData;
         if (signatureDataUrl) {
           els.signaturePreview.src = signatureDataUrl;
           els.signaturePreview.classList.add("visible");
-          els.signaturePreview.alt = `Signature preview with Efficient Engineering logo, signed by ${signerEmail}, on ${formatSignedDate(signedAt)}`;
+          els.signaturePreview.alt = `Signature preview with Efficient Engineering logo${signerName ? ` and ${signerName}` : ""}, signed by ${signerEmail}, on ${formatSignedDate(signedAt)}`;
         } else {
           els.signaturePreview.classList.remove("visible");
           els.signaturePreview.removeAttribute("src");
-          els.signedDate.value = "Set when placed";
         }
         if (stampPlacement) {
           if (signatureDataUrl) {
@@ -1007,7 +865,7 @@
       }
 
       async function exportSignedPdf() {
-        if (!authUser?.email_confirmed_at || stampPlacement?.userId !== authUser.id ||
+        if (!authUser?.email || stampPlacement?.userId !== authUser.id ||
             stampPlacement?.email !== authUser.email) {
           showToast("Sign in with the same confirmed account used to place this signature.");
           return;
@@ -1072,19 +930,6 @@
       els.emptyUpload.addEventListener("click", openFilePicker);
       els.pdfInput.addEventListener("change", (event) => loadPdf(event.target.files[0]));
       els.removeFile.addEventListener("click", resetDocument);
-      els.drawTab.addEventListener("click", () => selectTab("draw"));
-      els.typeTab.addEventListener("click", () => selectTab("type"));
-      els.drawCanvas.addEventListener("pointerdown", beginDraw);
-      els.drawCanvas.addEventListener("pointermove", continueDraw);
-      els.drawCanvas.addEventListener("pointerup", endDraw);
-      els.drawCanvas.addEventListener("pointercancel", endDraw);
-      els.clearDraw.addEventListener("click", clearDraw);
-      els.typedName.addEventListener("input", syncSignature);
-      els.fontOptions.forEach((button) => button.addEventListener("click", () => {
-        activeFont = button.dataset.font;
-        els.fontOptions.forEach((option) => option.classList.toggle("selected", option === button));
-        syncSignature();
-      }));
       els.pdfCanvas.addEventListener("click", placeStamp);
       setupStampDragging();
       els.previousPage.addEventListener("click", () => changePage(-1));
@@ -1105,7 +950,7 @@
         console.error("Efficient Engineering logo failed to load.");
         showToast("The company logo couldn't load. Refresh the page and try again.");
       });
-      companyLogo.src = "efficient-engineering-logo.png";
+      companyLogo.src = COMPANY_LOGO_DATA_URL;
       els.authSignOut.addEventListener("click", async () => {
         if (!authClient) return;
         els.authSignOut.disabled = true;
@@ -1123,7 +968,6 @@
       window.addEventListener("resize", () => {
         window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(() => {
-          if (activeTab === "draw") resizeDrawCanvas();
           if (pdfDocument) renderPage();
         }, 180);
       });
@@ -1131,7 +975,6 @@
         if (renderTask) renderTask.cancel();
       });
 
-      resizeDrawCanvas();
     })();
   </script>
 </body>

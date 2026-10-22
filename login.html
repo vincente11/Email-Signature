@@ -52,6 +52,9 @@
     .intro, .message { color: var(--muted); font-size: 13px; line-height: 1.6; }
     .intro { margin: 0 0 22px; }
     .message { min-height: 21px; margin: 0 0 14px; overflow-wrap: anywhere; }
+    .name-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .name-fields[hidden] { display: none; }
+    .signature-note { margin: 8px 0 2px; color: var(--muted); font-size: 11px; line-height: 1.5; }
     label { display: block; margin: 14px 0 6px; color: #59645d; font-size: 11px; font-weight: 600; }
     input {
       width: 100%;
@@ -95,9 +98,18 @@
       <p id="intro" class="intro">Sign in to create and place your signature.</p>
       <p id="message" class="message" role="status" aria-live="polite"></p>
       <form id="authForm">
-        <label for="email">Email address</label>
+        <div id="nameFields" class="name-fields" hidden>
+          <label for="firstName">First name
+            <input id="firstName" type="text" autocomplete="given-name" maxlength="60" placeholder="First name" required disabled>
+          </label>
+          <label for="lastName">Surname
+            <input id="lastName" type="text" autocomplete="family-name" maxlength="60" placeholder="Surname" required disabled>
+          </label>
+        </div>
+        <p id="signatureNote" class="signature-note" hidden>Your first name and surname will appear in your PDF signature.</p>
+        <label id="emailLabel" for="email">Email address</label>
         <input id="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
-        <label for="password">Password</label>
+        <label id="passwordLabel" for="password">Password</label>
         <input id="password" type="password" autocomplete="current-password" minlength="8" placeholder="Password" required>
         <button id="submitButton" class="primary-button" type="submit">Sign in</button>
       </form>
@@ -112,7 +124,13 @@
       const SUPABASE_URL = "https://mvfnycefnmpwtuoajliq.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_-_KnKaBRJLvTl2VLfNWTXA_FFpZvqcr";
       const form = document.getElementById("authForm");
+      const nameFields = document.getElementById("nameFields");
+      const firstNameInput = document.getElementById("firstName");
+      const lastNameInput = document.getElementById("lastName");
+      const signatureNote = document.getElementById("signatureNote");
+      const emailLabel = document.getElementById("emailLabel");
       const emailInput = document.getElementById("email");
+      const passwordLabel = document.getElementById("passwordLabel");
       const passwordInput = document.getElementById("password");
       const submitButton = document.getElementById("submitButton");
       const switchButton = document.getElementById("switchButton");
@@ -120,6 +138,7 @@
       const intro = document.getElementById("intro");
       const message = document.getElementById("message");
       let isSignUpMode = false;
+      let isProfileCompletionMode = false;
       let authClient = null;
 
       function setMessage(text) {
@@ -128,9 +147,23 @@
 
       function setMode(isSignUp) {
         isSignUpMode = isSignUp;
+        isProfileCompletionMode = false;
+        emailLabel.hidden = false;
+        emailInput.hidden = false;
+        emailInput.required = true;
+        passwordLabel.hidden = false;
+        passwordInput.hidden = false;
+        passwordInput.required = true;
+        switchButton.hidden = false;
+        nameFields.hidden = !isSignUp;
+        firstNameInput.disabled = !isSignUp;
+        firstNameInput.required = isSignUp;
+        lastNameInput.disabled = !isSignUp;
+        lastNameInput.required = isSignUp;
+        signatureNote.hidden = !isSignUp;
         heading.textContent = isSignUp ? "Create your account." : "Welcome back.";
         intro.textContent = isSignUp
-          ? "Create an account to add your signature to PDFs."
+          ? "Create an account with the name that will appear on your signature."
           : "Sign in to create and place your signature.";
         submitButton.textContent = isSignUp ? "Create account" : "Sign in";
         passwordInput.autocomplete = isSignUp ? "new-password" : "current-password";
@@ -141,6 +174,46 @@
           : "New here? Create an account";
       }
 
+      function hasAccountName(user) {
+        const metadata = user?.user_metadata || {};
+        return Boolean(
+          (typeof metadata.first_name === "string" && metadata.first_name.trim()) &&
+          (typeof metadata.last_name === "string" && metadata.last_name.trim())
+        ) || [
+          metadata.display_name,
+          metadata.displayName,
+          metadata.full_name,
+          metadata.name
+        ].some((name) => typeof name === "string" && name.trim());
+      }
+
+      function setProfileCompletion(user) {
+        isProfileCompletionMode = true;
+        setMode(true);
+        isProfileCompletionMode = true;
+        firstNameInput.value = typeof user.user_metadata?.first_name === "string"
+          ? user.user_metadata.first_name : "";
+        lastNameInput.value = typeof user.user_metadata?.last_name === "string"
+          ? user.user_metadata.last_name : "";
+        nameFields.hidden = false;
+        firstNameInput.disabled = false;
+        firstNameInput.required = true;
+        lastNameInput.disabled = false;
+        lastNameInput.required = true;
+        signatureNote.hidden = false;
+        signatureNote.textContent = "Your name and surname will appear in your PDF signature.";
+        emailLabel.hidden = true;
+        emailInput.hidden = true;
+        emailInput.required = false;
+        passwordLabel.hidden = true;
+        passwordInput.hidden = true;
+        passwordInput.required = false;
+        switchButton.hidden = true;
+        heading.textContent = "Add your signer name.";
+        intro.textContent = "Save your first name and surname to your account to continue signing.";
+        submitButton.textContent = "Save name and continue";
+      }
+
       async function handleSubmit(event) {
         event.preventDefault();
         if (!authClient) {
@@ -149,27 +222,63 @@
         }
 
         submitButton.disabled = true;
-        setMessage(isSignUpMode ? "Creating your account…" : "Signing in…");
+        setMessage(isProfileCompletionMode
+          ? "Saving your signer name…"
+          : isSignUpMode ? "Creating your account…" : "Signing in…");
         const email = emailInput.value.trim();
         const password = passwordInput.value;
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        if ((isSignUpMode || isProfileCompletionMode) && (!firstName || !lastName)) {
+          setMessage("Enter both your first name and surname to create your account.");
+          submitButton.disabled = false;
+          return;
+        }
+        const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
         try {
+          if (isProfileCompletionMode) {
+            const { error } = await authClient.auth.updateUser({
+              data: {
+                first_name: firstName,
+                last_name: lastName,
+                full_name: fullName,
+                display_name: fullName
+              }
+            });
+            if (error) throw error;
+            window.location.replace("index.html");
+            return;
+          }
+
           const result = isSignUpMode
             ? await authClient.auth.signUp({
               email,
               password,
-              options: { emailRedirectTo: new URL("index.html", window.location.href).href }
+              options: {
+                data: {
+                  first_name: firstName,
+                  last_name: lastName,
+                  full_name: fullName,
+                  display_name: fullName
+                }
+              }
             })
             : await authClient.auth.signInWithPassword({ email, password });
           if (result.error) throw result.error;
 
           passwordInput.value = "";
-          if (isSignUpMode && !result.data.session) {
-            setMessage(`Check ${email} and confirm your email before signing in.`);
+          if (isSignUpMode) {
+            if (result.data.session) {
+              window.location.replace("index.html");
+            } else {
+              setMessage("Supabase did not start an account session. To disable confirmation emails, turn off Confirm email under Authentication → Sign In / Providers → Email. If you already have an account, switch to sign in.");
+            }
             return;
           }
-          if (!result.data.user?.email_confirmed_at) {
-            setMessage(`Confirm the email sent to ${email} before signing.`);
+          if (!hasAccountName(result.data.user)) {
+            setProfileCompletion(result.data.user);
+            setMessage("Add your first name and surname to your account. They will appear automatically in your signature.");
             return;
           }
           window.location.replace("index.html");
@@ -195,10 +304,43 @@
         return;
       }
 
+      const isProfileCompletionRequested = new URLSearchParams(window.location.search).get("complete-profile") === "1";
       authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      authClient.auth.getSession().then(({ data, error }) => {
+      authClient.auth.getSession().then(async ({ data, error }) => {
         if (error) throw error;
-        if (data.session?.user) window.location.replace("index.html");
+        let currentUser = null;
+        if (data.session) {
+          const { data: userData, error: userError } = await authClient.auth.getUser();
+          if (userError) {
+            console.error("Saved Supabase session is invalid:", userError);
+            const { error: signOutError } = await authClient.auth.signOut({ scope: "local" });
+            if (signOutError) throw signOutError;
+            setMessage("Your saved session belongs to an account that no longer exists. Sign in again with your current account.");
+            return;
+          }
+          currentUser = userData.user;
+        }
+
+        if (isProfileCompletionRequested) {
+          if (!currentUser) {
+            setMessage("Sign in first to add your name to your account.");
+            return;
+          }
+          if (hasAccountName(currentUser)) {
+            window.location.replace("index.html");
+            return;
+          }
+          setProfileCompletion(currentUser);
+          return;
+        }
+        if (currentUser) {
+          if (hasAccountName(currentUser)) {
+            window.location.replace("index.html");
+          } else {
+            setProfileCompletion(currentUser);
+            setMessage("Add your first name and surname to your account. They will appear automatically in your signature.");
+          }
+        }
       }).catch((error) => {
         console.error("Supabase session restore failed:", error);
         setMessage("Couldn't check your session. Please try again.");
