@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f2">
-  <title>Signwell — PDF signing, made simple</title>
+  <title>Efficient Sign — PDF signing, made simple</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
@@ -163,9 +163,9 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand" aria-label="Signwell home">
+      <div class="brand" aria-label="Efficient Sign home">
         <span class="brand-mark">s</span>
-        <span class="brand-name">signwell</span>
+        <span class="brand-name">efficient sign</span>
       </div>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
     </header>
@@ -812,7 +812,7 @@
         canvas.width = width * scale;
         canvas.height = 200 * scale;
         context.scale(scale, scale);
-        context.fillStyle = "#203c2d";
+        context.fillStyle = "#1f1f1f";
         context.textBaseline = "alphabetic";
         context.font = 'italic 34px "Playfair Display", Georgia, serif';
         context.fillText(signerName, 12, 55, width - 24);
@@ -825,7 +825,7 @@
         context.fillStyle = "#203c2d";
         context.fillRect(12, 84, logoWidth, logoHeight);
         context.drawImage(companyLogo, 12, 84, logoWidth, logoHeight);
-        context.fillStyle = "#66736a";
+        context.fillStyle = "#666666";
         context.textBaseline = "alphabetic";
         context.font = '11px "DM Sans", sans-serif';
         context.fillText(declarationText, 12, 151, width - 24);
