@@ -51,6 +51,12 @@
     .account-email { max-width: 240px; overflow: hidden; color: #536057; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
     .account-actions button, .account-actions a { min-height: 37px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
     .account-actions button:disabled { opacity: .5; cursor: wait; }
+    .reminder-preference { display: flex; align-items: flex-start; gap: 9px; margin: -5px 0 18px; padding: 12px 14px; border: 1px solid #e6ebe5; border-radius: 9px; color: #536057; font-size: 11px; line-height: 1.5; }
+    .reminder-preference input { margin: 2px 0 0; accent-color: var(--green); }
+    .reminder-preference span { display: block; color: var(--muted); font-size: 10px; }
+    .reminder-preference input:disabled { cursor: wait; }
+    .reminder-preference > span { color: #354039; font-weight: 600; }
+    .reminder-preference > span > span { font-weight: 400; }
     .request-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 15px; border-bottom: 1px solid var(--line); }
     .request-tab { position: relative; min-height: 42px; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
     .request-tab[aria-selected="true"] { color: var(--green); }
@@ -151,6 +157,13 @@
           <a id="signInLink" href="login.html" hidden>Sign in</a>
         </div>
       </div>
+      <label id="reminderPreference" class="reminder-preference" hidden>
+        <input id="reminderOptOut" type="checkbox">
+        <span>
+          Opt out of manual signing reminders
+          <span id="reminderPreferenceStatus" role="status">Owners can send at most one reminder per request during your turn every 24 hours.</span>
+        </span>
+      </label>
       <div class="request-tabs" role="tablist" aria-label="Filter sign-off requests">
         <button id="pendingRequestsTab" class="request-tab" type="button" role="tab" aria-selected="true" aria-controls="requestTablePanel">
           Pending <span id="pendingRequestCount" class="request-count">0</span>
@@ -198,6 +211,9 @@
         approvedRequestCount: $("approvedRequestCount"),
         requestTablePanel: $("requestTablePanel"),
         requestTableBody: $("requestTableBody"),
+        reminderPreference: $("reminderPreference"),
+        reminderOptOut: $("reminderOptOut"),
+        reminderPreferenceStatus: $("reminderPreferenceStatus"),
         loadError: $("loadError")
       };
       const browserNotifications = window.EfficientSignNotifications.attach(els.browserNotificationToggle, {
@@ -215,6 +231,7 @@
       let timelineEvents = new Map();
       let timelineErrors = new Map();
       let timelineLoading = new Set();
+      let reminderCooldowns = new Map();
       let notificationPollTimer = null;
       let refreshInProgress = false;
 
@@ -334,12 +351,19 @@
           timelineEvents = new Map();
           timelineErrors = new Map();
           timelineLoading = new Set();
+          reminderCooldowns = new Map();
         }
         els.accountEmail.hidden = !user;
         els.accountEmail.textContent = user?.email || "";
         els.refreshRequests.disabled = !user;
         els.signOutButton.hidden = !user;
         els.signInLink.hidden = Boolean(user);
+        els.reminderPreference.hidden = !user;
+        if (userChanged && user) void loadReminderPreference(user.id);
+        if (!user) {
+          els.reminderOptOut.checked = false;
+          els.reminderPreferenceStatus.textContent = "";
+        }
         if (errorMessage) {
           els.accountMessage.textContent = errorMessage;
         } else {
@@ -459,6 +483,23 @@
           statusCell.append(status);
 
           const actionCell = document.createElement("td");
+          if (request.status === "pending" && request.owner_id === authUser.id) {
+            const reminderButton = document.createElement("button");
+            reminderButton.type = "button";
+            reminderButton.className = "request-action";
+            const cooldown = reminderCooldowns.get(request.request_id);
+            const coolingDown = cooldown
+              && cooldown.position === request.active_signer_position
+              && cooldown.until > Date.now();
+            reminderButton.textContent = coolingDown ? "Reminder sent" : "Send reminder";
+            reminderButton.disabled = Boolean(coolingDown);
+            reminderButton.title = coolingDown
+              ? `You can remind this signer again ${formatTimelineDate(cooldown.until)}.`
+              : "Send a browser push reminder to the current signer. Limited to one per signer every 24 hours.";
+            reminderButton.setAttribute("aria-label", `${coolingDown ? "Reminder sent" : "Send reminder to"} the current signer for ${request.file_name}`);
+            reminderButton.addEventListener("click", () => void sendReminder(request, reminderButton));
+            actionCell.append(reminderButton);
+          }
           if (request.status === "completed") {
             const downloadButton = document.createElement("button");
             downloadButton.type = "button";
@@ -505,6 +546,84 @@
         return Number.isNaN(date.getTime())
           ? "Time unavailable"
           : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+      }
+
+      async function loadReminderPreference(userId) {
+        els.reminderOptOut.disabled = true;
+        els.reminderPreferenceStatus.textContent = "Loading preference…";
+        try {
+          const { data, error } = await authClient
+            .from("signing_reminder_preferences")
+            .select("opted_out")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (error) throw error;
+          if (authUser?.id !== userId) return;
+          els.reminderOptOut.checked = data?.opted_out === true;
+          els.reminderPreferenceStatus.textContent = data?.opted_out
+            ? "Owners cannot send you manual reminders."
+            : "Owners can send you at most one reminder per request during your turn every 24 hours.";
+        } catch (error) {
+          if (authUser?.id !== userId) return;
+          console.error("Signing reminder preference could not be loaded:", error);
+          els.reminderPreferenceStatus.textContent = error?.message || "Reminder preference could not be loaded.";
+        } finally {
+          if (authUser?.id === userId) els.reminderOptOut.disabled = false;
+        }
+      }
+
+      async function saveReminderPreference() {
+        if (!authClient || !authUser) return;
+        const userId = authUser.id;
+        const previousValue = !els.reminderOptOut.checked;
+        const optedOut = els.reminderOptOut.checked;
+        els.reminderOptOut.disabled = true;
+        els.reminderPreferenceStatus.textContent = "Saving preference…";
+        try {
+          const { error } = await authClient.rpc("set_signing_reminder_opt_out", {
+            p_opted_out: optedOut,
+          });
+          if (error) throw error;
+          if (authUser?.id !== userId) return;
+          els.reminderPreferenceStatus.textContent = optedOut
+            ? "Reminder opt-out saved. Owners can no longer send you manual reminders."
+            : "Reminder opt-in saved. Owners can send at most one reminder per request during your turn every 24 hours.";
+        } catch (error) {
+          if (authUser?.id !== userId) return;
+          els.reminderOptOut.checked = previousValue;
+          els.reminderPreferenceStatus.textContent = error?.message || "Reminder preference could not be saved.";
+          console.error("Signing reminder preference could not be saved:", error);
+        } finally {
+          if (authUser?.id === userId) els.reminderOptOut.disabled = false;
+        }
+      }
+
+      async function sendReminder(request, button) {
+        if (!authClient || !authUser || request.owner_id !== authUser.id) return;
+        button.disabled = true;
+        button.textContent = "Sending…";
+        els.loadError.hidden = true;
+        try {
+          const { data, error } = await authClient.rpc("send_signing_reminder", {
+            p_request_id: request.request_id,
+          });
+          if (error) throw error;
+          reminderCooldowns.set(request.request_id, {
+            until: new Date(data).getTime() + 24 * 60 * 60 * 1000,
+            position: request.active_signer_position,
+          });
+          const timelineWasExpanded = expandedTimelines.has(request.request_id);
+          timelineEvents.delete(request.request_id);
+          if (timelineWasExpanded) expandedTimelines.delete(request.request_id);
+          renderRequests();
+          if (timelineWasExpanded) void toggleTimeline(request.request_id);
+        } catch (error) {
+          console.error("Signing reminder could not be sent:", error);
+          els.loadError.textContent = error?.message || "The reminder could not be sent.";
+          els.loadError.hidden = false;
+          button.disabled = false;
+          button.textContent = "Send reminder";
+        }
       }
 
       function createTimelineMessage(text, isError = false) {
@@ -589,13 +708,15 @@
                 title.textContent = "Request cancelled";
               } else if (event.event_type === "signer_signed") {
                 title.textContent = `${event.actor_id === authUser.id ? "You" : event.actor_name || "A signer"} signed${event.signer_order ? ` (step ${event.signer_order})` : ""}`;
+              } else if (event.event_type === "reminder_sent") {
+                title.textContent = `${event.actor_id === authUser.id ? "You" : event.actor_name || "The owner"} sent a reminder to the current signer`;
               } else {
                 title.textContent = `Request status changed${event.to_status ? ` to ${event.to_status}` : ""}`;
               }
               const time = document.createElement("time");
               time.className = "audit-event-time";
               time.dateTime = event.created_at;
-              time.textContent = `${event.actor_name && event.event_type !== "signer_signed" ? `By ${event.actor_id === authUser.id ? "you" : event.actor_name} · ` : ""}${formatTimelineDate(event.created_at)}`;
+              time.textContent = `${event.actor_name && !["signer_signed", "reminder_sent"].includes(event.event_type) ? `By ${event.actor_id === authUser.id ? "you" : event.actor_name} · ` : ""}${formatTimelineDate(event.created_at)}`;
               item.append(title, time);
               list.append(item);
             }
@@ -675,6 +796,7 @@
       }
 
       els.refreshRequests.addEventListener("click", () => void refreshRequests());
+      els.reminderOptOut.addEventListener("change", () => void saveReminderPreference());
       els.pendingRequestsTab.addEventListener("click", () => selectFilter("pending"));
       els.approvedRequestsTab.addEventListener("click", () => selectFilter("approved"));
       els.allRequestsTab.addEventListener("click", () => selectFilter("all"));

@@ -67,8 +67,11 @@ function createAdminClient() {
   });
 }
 
-function createNotification(request: SigningRequest) {
+function createNotification(request: SigningRequest, reminder: boolean) {
   const fileName = request.file_name || "a document";
+  if (reminder && request.status === "pending") {
+    return { title: "Signing reminder", body: `A reminder to review ${fileName} was sent by its owner.` };
+  }
   if (request.status === "completed") {
     return { title: "Sign-off complete", body: `All signers have approved ${fileName}.` };
   }
@@ -78,7 +81,7 @@ function createNotification(request: SigningRequest) {
   return { title: "Your sign-off is ready", body: `Your approval is requested for ${fileName}.` };
 }
 
-async function sendRequestUpdates(requestId: string): Promise<{ sent: number; removed: number }> {
+async function sendRequestUpdates(requestId: string, reminder: boolean): Promise<{ sent: number; removed: number }> {
   const admin = createAdminClient();
   const { data: request, error: requestError } = await admin
     .from("signing_requests")
@@ -109,7 +112,7 @@ async function sendRequestUpdates(requestId: string): Promise<{ sent: number; re
   if (!subscriptions?.length) return { sent: 0, removed: 0 };
 
   const vapidDetails = getVapidDetails();
-  const notification = createNotification(request);
+  const notification = createNotification(request, reminder);
   let sent = 0;
   let removed = 0;
 
@@ -195,8 +198,11 @@ Deno.serve(async (request) => {
     if (!requestIdPattern.test(requestId)) {
       return jsonResponse({ error: "A valid signing request ID is required." }, 400);
     }
+    if (payload.reminder !== undefined && typeof payload.reminder !== "boolean") {
+      return jsonResponse({ error: "The reminder flag must be a boolean." }, 400);
+    }
 
-    const result = await sendRequestUpdates(requestId);
+    const result = await sendRequestUpdates(requestId, payload.reminder === true);
     return jsonResponse({ ok: true, ...result });
   } catch (error) {
     console.error("Signing push dispatch failed:", error);
