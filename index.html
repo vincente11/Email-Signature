@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f2">
-  <title>Efficient Sign — PDF signing, made simple</title>
+  <title>EFFICIENT SIGN — PDF signing, made simple</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
@@ -51,12 +51,9 @@
       border-bottom: 1px solid var(--line);
     }
     .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: -.5px; }
-    .brand-mark {
-      width: 34px; height: 34px; display: grid; place-items: center;
-      color: white; background: var(--green); border-radius: 11px;
-      font-family: "Playfair Display", Georgia, serif; font-size: 21px; font-style: italic;
-    }
+    .brand-logo { width: 150px; height: 38px; padding: 5px 8px; border-radius: 7px; background: var(--green); object-fit: contain; }
     .brand-name { font-size: 18px; }
+    .site-footer { padding: 16px 24px; border-top: 1px solid var(--line); background: #fbfbf9; color: var(--muted); font-size: 11px; text-align: center; }
     .topbar-note { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 8px; }
     .secure-dot { width: 7px; height: 7px; background: #7da76f; border-radius: 50%; }
 
@@ -164,9 +161,9 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand" aria-label="Efficient Sign home">
-        <span class="brand-mark">s</span>
-        <span class="brand-name">efficient sign</span>
+      <div class="brand" aria-label="EFFICIENT SIGN home">
+        <img class="brand-logo" src="efficient-engineering-logo.png" alt="Efficient Engineering">
+        <span class="brand-name">EFFICIENT SIGN</span>
       </div>
       <div class="topbar-note"><span class="secure-dot" aria-hidden="true"></span> Your document stays on this device</div>
     </header>
@@ -278,6 +275,7 @@
         </section>
       </section>
     </main>
+    <footer class="site-footer">Developed by Vincent Mlauzi</footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

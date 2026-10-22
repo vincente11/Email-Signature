@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f2">
-  <title>Sign in — Efficient Sign</title>
+  <title>Sign in — EFFICIENT SIGN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
@@ -23,30 +23,20 @@
     body {
       min-width: 320px;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
       margin: 0;
-      padding: 24px;
+      padding: 24px 0 0;
       background: var(--canvas);
       color: var(--ink);
       font-family: "DM Sans", sans-serif;
     }
     button, input { font: inherit; }
-    .login-shell { width: min(420px, 100%); }
+    .login-shell { width: min(420px, calc(100% - 48px)); margin: auto; }
     .brand { display: flex; align-items: center; justify-content: center; gap: 11px; margin-bottom: 24px; font-weight: 700; letter-spacing: -.5px; }
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 11px;
-      background: var(--green);
-      color: white;
-      font-family: "Playfair Display", Georgia, serif;
-      font-size: 21px;
-      font-style: italic;
-    }
+    .brand-logo { width: 150px; height: 38px; padding: 5px 8px; border-radius: 7px; background: var(--green); object-fit: contain; }
     .brand-name { font-size: 18px; }
+    .site-footer { margin-top: 24px; padding: 16px 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; text-align: center; }
     .card { padding: 30px; border: 1px solid var(--line); border-radius: 17px; background: white; box-shadow: 0 16px 42px rgba(31, 43, 36, .11); }
     h1 { margin: 0 0 8px; font-family: "Playfair Display", Georgia, serif; font-size: 32px; font-weight: 500; letter-spacing: -.7px; }
     .intro, .message { color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -89,9 +79,9 @@
 </head>
 <body>
   <main class="login-shell">
-    <div class="brand" aria-label="Efficient Sign">
-      <span class="brand-mark">s</span>
-      <span class="brand-name">efficient sign</span>
+    <div class="brand" aria-label="EFFICIENT SIGN">
+      <img class="brand-logo" src="efficient-engineering-logo.png" alt="Efficient Engineering">
+      <span class="brand-name">EFFICIENT SIGN</span>
     </div>
     <section class="card" aria-labelledby="heading">
       <h1 id="heading">Welcome back.</h1>
@@ -117,6 +107,7 @@
       <a class="back-link" href="index.html">Back to PDF signing</a>
     </section>
   </main>
+  <footer class="site-footer">Developed by Vincent Mlauzi</footer>
   <script>
     (() => {
       "use strict";
