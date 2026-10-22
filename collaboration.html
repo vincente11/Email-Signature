@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f5f1">
+  <title>Collaboration requests — EFFICIENT SIGN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1e2723;
+      --muted: #707974;
+      --line: #e6e8e3;
+      --paper: #fff;
+      --green: #245c45;
+      --green-dark: #194a36;
+      --shadow: 0 14px 40px rgba(28,43,33,.07);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { min-width: 320px; min-height: 100vh; margin: 0; display: flex; flex-direction: column; background: #f3f5f1; color: var(--ink); font-family: "DM Sans", sans-serif; }
+    button { font: inherit; color: inherit; }
+    .topbar { position: sticky; top: 0; z-index: 5; min-height: 76px; padding: 0 5.2vw; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,253,.94); border-bottom: 1px solid var(--line); box-shadow: 0 4px 18px rgba(24,39,30,.035); backdrop-filter: blur(14px); }
+    .brand { display: flex; align-items: center; gap: 13px; font-weight: 700; letter-spacing: -.6px; }
+    .brand-logo { width: 49px; height: 37px; object-fit: contain; }
+    .brand-name { font-size: 19px; }
+    .main-nav { display: flex; align-items: center; gap: 7px; }
+    .main-nav a { padding: 10px 14px; border-radius: 8px; color: #59645d; font-size: 12px; font-weight: 600; text-decoration: none; }
+    .main-nav a:hover, .main-nav a:focus-visible { background: #f0f3ee; color: var(--green); outline: none; }
+    .main-nav a[aria-current="page"] { background: #edf3ee; color: var(--green-dark); }
+    .nav-notification-badge { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 5px; padding: 0 5px; border-radius: 10px; background: #b84938; color: white; font-size: 9px; font-weight: 700; line-height: 1; }
+    main { width: min(1180px, 92vw); flex: 1; margin: 42px auto 64px; }
+    .hero { position: relative; min-height: 196px; display: flex; align-items: center; padding: 34px 42px; overflow: hidden; border-radius: 21px; background: radial-gradient(ellipse at 87% 125%, rgba(164,194,131,.23), transparent 42%), linear-gradient(120deg, #173b2d, #245640 58%, #31674d); box-shadow: 0 18px 38px rgba(28,62,43,.15); color: white; }
+    .hero::after { position: absolute; top: -125px; right: 2%; width: 340px; height: 340px; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; box-shadow: 0 0 0 36px rgba(255,255,255,.035), 0 0 0 76px rgba(255,255,255,.025); content: ""; }
+    .hero-content { position: relative; z-index: 1; max-width: 620px; }
+    .eyebrow { color: #dce8d4; font-size: 9px; font-weight: 700; letter-spacing: 1.45px; text-transform: uppercase; }
+    h1 { margin: 10px 0 7px; font-family: "Playfair Display", Georgia, serif; font-size: clamp(34px, 4.5vw, 48px); font-weight: 500; letter-spacing: -1.2px; }
+    .hero p { margin: 0; color: rgba(255,255,255,.77); font-size: 13px; line-height: 1.65; }
+    .dashboard { margin-top: 24px; padding: 27px; border: 1px solid #e4e9e2; border-radius: 18px; background: var(--paper); box-shadow: var(--shadow); }
+    .dashboard-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 21px; }
+    .dashboard-heading h2 { margin: 0 0 5px; font-size: 21px; letter-spacing: -.5px; }
+    .dashboard-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .account-actions { display: flex; align-items: center; gap: 9px; }
+    .account-email { max-width: 240px; overflow: hidden; color: #536057; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .account-actions button, .account-actions a { min-height: 37px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
+    .account-actions button:disabled { opacity: .5; cursor: wait; }
+    .request-tabs { display: flex; align-items: center; gap: 6px; margin-bottom: 15px; border-bottom: 1px solid var(--line); }
+    .request-tab { position: relative; min-height: 42px; padding: 0 14px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+    .request-tab[aria-selected="true"] { color: var(--green); }
+    .request-tab[aria-selected="true"]::after { position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; background: var(--green); content: ""; }
+    .request-count { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 5px; padding: 0 5px; border-radius: 10px; background: #f0f2ef; color: inherit; font-size: 9px; }
+    .request-table-wrap { overflow-x: auto; border: 1px solid #e6ebe5; border-radius: 12px; }
+    .request-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .request-table th { padding: 13px 16px; background: #f6f8f5; color: #727a74; font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; white-space: nowrap; }
+    .request-table td { padding: 15px 16px; border-top: 1px solid #edf0eb; color: #47514a; font-size: 11px; vertical-align: middle; }
+    .request-table tbody tr:hover { background: #fcfdfb; }
+    .request-file { max-width: 300px; overflow-wrap: anywhere; color: var(--ink); font-weight: 600; }
+    .request-subtext { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
+    .request-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 20px; background: #fff5e8; color: #8a5a21; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .request-status::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
+    .request-status.approved { background: #edf5ee; color: #356b47; }
+    .request-status.cancelled { background: #f1f2f1; color: #707974; }
+    .request-action { padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); font-size: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .request-action:hover { border-color: #9bb5a2; background: #f8faf7; }
+    .request-action:disabled { opacity: .5; cursor: wait; }
+    .request-table-empty { padding: 45px 16px !important; color: var(--muted) !important; text-align: center; }
+    .load-error { margin: 12px 0 0; color: #8a4a37; font-size: 11px; }
+    .site-footer { padding: 16px 24px; border-top: 1px solid var(--line); background: #fbfbf9; color: var(--muted); font-size: 11px; text-align: center; }
+    @media (max-width: 760px) {
+      .topbar { min-height: 62px; padding: 8px 5vw; flex-wrap: wrap; gap: 5px 12px; }
+      .main-nav { order: 3; width: 100%; justify-content: center; border-top: 1px solid var(--line); }
+      .main-nav a { padding: 8px 10px; }
+      main { width: min(100% - 24px, 620px); margin: 26px auto 38px; }
+      .hero { min-height: 180px; padding: 30px 26px; }
+      .hero::after { right: -185px; }
+      .dashboard { padding: 20px 16px; }
+      .dashboard-heading { flex-direction: column; }
+      .account-actions { width: 100%; }
+      .account-email { min-width: 0; flex: 1; }
+      .request-table { min-width: 690px; }
+    }
+    @media (max-width: 430px) {
+      .brand { gap: 8px; }
+      .brand-logo { width: 40px; height: 31px; }
+      .brand-name { font-size: 16px; }
+      .account-actions { flex-wrap: wrap; }
+      .account-email { flex-basis: 100%; max-width: none; }
+      .request-tabs { gap: 0; }
+      .request-tab { padding: 0 10px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" aria-label="EFFICIENT SIGN home">
+      <img class="brand-logo" src="efficient-engineering-mark.png" alt="Efficient Engineering logo">
+      <span class="brand-name">EFFICIENT SIGN</span>
+    </div>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a href="index.html">Sign a PDF</a>
+      <a href="collaboration.html" aria-current="page" aria-label="Collaboration requests">
+        Collaboration requests<span id="requestNotificationBadge" class="nav-notification-badge" aria-hidden="true" hidden></span>
+      </a>
+    </nav>
+    <span class="eyebrow">Private document signing</span>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-content">
+        <div class="eyebrow">Shared documents</div>
+        <h1 id="pageTitle">Collaboration requests</h1>
+        <p>Follow every sign-off from request to approval, all in one place.</p>
+      </div>
+    </section>
+    <section class="dashboard" aria-labelledby="requestsHeading">
+      <div class="dashboard-heading">
+        <div>
+          <h2 id="requestsHeading">Your sign-off activity</h2>
+          <p id="accountMessage" role="status">Checking your account…</p>
+        </div>
+        <div class="account-actions">
+          <span id="accountEmail" class="account-email" hidden></span>
+          <button id="refreshRequests" type="button" disabled>Refresh requests</button>
+          <button id="signOutButton" type="button" hidden>Sign out</button>
+          <a id="signInLink" href="login.html" hidden>Sign in</a>
+        </div>
+      </div>
+      <div class="request-tabs" role="tablist" aria-label="Filter sign-off requests">
+        <button id="pendingRequestsTab" class="request-tab" type="button" role="tab" aria-selected="true" aria-controls="requestTablePanel">
+          Pending <span id="pendingRequestCount" class="request-count">0</span>
+        </button>
+        <button id="approvedRequestsTab" class="request-tab" type="button" role="tab" aria-selected="false" aria-controls="requestTablePanel">
+          Approved <span id="approvedRequestCount" class="request-count">0</span>
+        </button>
+        <button id="allRequestsTab" class="request-tab" type="button" role="tab" aria-selected="false" aria-controls="requestTablePanel">All requests</button>
+      </div>
+      <div id="requestTablePanel" class="request-table-wrap" role="tabpanel" aria-labelledby="pendingRequestsTab" tabindex="0">
+        <table class="request-table">
+          <thead>
+            <tr><th scope="col">Document</th><th scope="col">Requested by</th><th scope="col">Signing progress</th><th scope="col">Status</th><th scope="col">Action</th></tr>
+          </thead>
+          <tbody id="requestTableBody" aria-live="polite">
+            <tr><td class="request-table-empty" colspan="5">Sign in to view collaboration requests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="loadError" class="load-error" role="alert" hidden></p>
+    </section>
+  </main>
+  <footer class="site-footer">Developed by Vincent Mlauzi</footer>
+  <script>
+    (() => {
+      "use strict";
+
+      const SUPABASE_URL = "https://mvfnycefnmpwtuoajliq.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_-_KnKaBRJLvTl2VLfNWTXA_FFpZvqcr";
+      const NOTIFICATION_POLL_MS = 30000;
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        accountMessage: $("accountMessage"),
+        accountEmail: $("accountEmail"),
+        refreshRequests: $("refreshRequests"),
+        signOutButton: $("signOutButton"),
+        signInLink: $("signInLink"),
+        notificationBadge: $("requestNotificationBadge"),
+        pendingRequestsTab: $("pendingRequestsTab"),
+        approvedRequestsTab: $("approvedRequestsTab"),
+        allRequestsTab: $("allRequestsTab"),
+        pendingRequestCount: $("pendingRequestCount"),
+        approvedRequestCount: $("approvedRequestCount"),
+        requestTablePanel: $("requestTablePanel"),
+        requestTableBody: $("requestTableBody"),
+        loadError: $("loadError")
+      };
+
+      let authClient = null;
+      let authUser = null;
+      let requests = [];
+      let requestFilter = "pending";
+      let notificationSnapshot = null;
+      let unreadRequestIds = new Set();
+      let notificationPollTimer = null;
+      let refreshInProgress = false;
+
+      initializeAuth();
+
+      function notificationStorageKey(userId) {
+        return `efficientSign:requestNotifications:${userId}`;
+      }
+
+      function restoreNotifications(userId) {
+        window.clearInterval(notificationPollTimer);
+        notificationPollTimer = null;
+        notificationSnapshot = null;
+        unreadRequestIds = new Set();
+        if (!userId) {
+          renderNotificationBadge();
+          return;
+        }
+        try {
+          const stored = localStorage.getItem(notificationStorageKey(userId));
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && parsed.snapshot && typeof parsed.snapshot === "object" && Array.isArray(parsed.unread)) {
+              notificationSnapshot = parsed.snapshot;
+              unreadRequestIds = new Set(parsed.unread.filter((id) => typeof id === "string"));
+            } else {
+              console.error("Saved collaboration notification state is invalid.");
+            }
+          }
+        } catch (error) {
+          console.error("Could not restore collaboration notification state:", error);
+        }
+        notificationPollTimer = window.setInterval(() => void refreshRequests(false), NOTIFICATION_POLL_MS);
+        renderNotificationBadge();
+      }
+
+      function renderNotificationBadge() {
+        const count = unreadRequestIds.size;
+        els.notificationBadge.hidden = count === 0;
+        els.notificationBadge.textContent = String(count > 99 ? "99+" : count);
+        els.notificationBadge.parentElement.setAttribute(
+          "aria-label",
+          count ? `Collaboration requests, ${count} new updates` : "Collaboration requests"
+        );
+      }
+
+      function saveNotifications() {
+        if (!authUser) return;
+        try {
+          localStorage.setItem(notificationStorageKey(authUser.id), JSON.stringify({
+            snapshot: notificationSnapshot || {},
+            unread: [...unreadRequestIds]
+          }));
+        } catch (error) {
+          console.error("Could not save collaboration notification state:", error);
+        }
+      }
+
+      function getRequestSignature(request) {
+        const signers = Array.isArray(request.signers) ? request.signers : [];
+        const signedCount = signers.filter((signer) => signer.status === "signed").length;
+        return [request.status, request.active_signer_position, request.my_status || "", request.signer_count, signedCount].join(":");
+      }
+
+      function updateNotifications(nextRequests) {
+        const nextSnapshot = Object.create(null);
+        const visibleIds = new Set();
+        for (const request of nextRequests) {
+          const id = request.request_id;
+          if (typeof id !== "string") continue;
+          visibleIds.add(id);
+          const signature = getRequestSignature(request);
+          if (
+            notificationSnapshot &&
+            (!Object.prototype.hasOwnProperty.call(notificationSnapshot, id) || notificationSnapshot[id] !== signature)
+          ) {
+            unreadRequestIds.add(id);
+          }
+          nextSnapshot[id] = signature;
+        }
+        unreadRequestIds = new Set([...unreadRequestIds].filter((id) => visibleIds.has(id)));
+        notificationSnapshot = nextSnapshot;
+        unreadRequestIds.clear();
+        saveNotifications();
+        renderNotificationBadge();
+      }
+
+      function initializeAuth() {
+        if (typeof window.supabase?.createClient !== "function") {
+          setSignedInUser(null, "Supabase couldn't load. Check your connection and refresh.");
+          return;
+        }
+        try {
+          authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          authClient.auth.onAuthStateChange((event, session) => {
+            if (event !== "INITIAL_SESSION") setSignedInUser(session?.user || null);
+          });
+          authClient.auth.getSession().then(({ data, error }) => {
+            if (error) throw error;
+            setSignedInUser(data.session?.user || null);
+          }).catch((error) => {
+            console.error("Could not restore sign-in session:", error);
+            setSignedInUser(null, `Couldn't restore your session: ${error.message}`);
+          });
+        } catch (error) {
+          console.error("Supabase initialization failed:", error);
+          setSignedInUser(null, `Supabase configuration error: ${error.message}`);
+        }
+      }
+
+      function setSignedInUser(user, errorMessage = "") {
+        const previousUserId = authUser?.id || null;
+        authUser = user;
+        const userChanged = previousUserId !== (user?.id || null);
+        els.accountEmail.hidden = !user;
+        els.accountEmail.textContent = user?.email || "";
+        els.refreshRequests.disabled = !user;
+        els.signOutButton.hidden = !user;
+        els.signInLink.hidden = Boolean(user);
+        if (errorMessage) {
+          els.accountMessage.textContent = errorMessage;
+        } else {
+          els.accountMessage.textContent = user
+            ? "Requests assigned to you and documents you sent are listed here."
+            : "Sign in to review your collaboration requests.";
+        }
+        if (userChanged) restoreNotifications(user?.id || null);
+        if (user && authClient) {
+          void refreshRequests();
+        } else {
+          requests = [];
+          renderRequests();
+        }
+      }
+
+      async function refreshRequests(showLoading = true) {
+        if (!authClient || !authUser || refreshInProgress) return;
+        refreshInProgress = true;
+        els.loadError.hidden = true;
+        if (showLoading) {
+          setEmptyRow("Loading collaboration requests…");
+        }
+        try {
+          const userId = authUser.id;
+          const { data, error } = await authClient.rpc("list_signing_requests");
+          if (error) throw error;
+          if (authUser?.id !== userId) return;
+          requests = data || [];
+          updateNotifications(requests);
+          renderRequests();
+        } catch (error) {
+          els.loadError.textContent = error?.message || "Couldn't load collaboration requests. Refresh to try again.";
+          els.loadError.hidden = false;
+          renderRequests();
+          console.error("Sign-off requests could not be loaded:", error);
+        } finally {
+          refreshInProgress = false;
+        }
+      }
+
+      function setEmptyRow(message) {
+        els.requestTableBody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.className = "request-table-empty";
+        cell.colSpan = 5;
+        cell.textContent = message;
+        row.append(cell);
+        els.requestTableBody.append(row);
+      }
+
+      function renderRequests() {
+        els.pendingRequestCount.textContent = String(requests.filter((request) => request.status === "pending").length);
+        els.approvedRequestCount.textContent = String(requests.filter((request) => request.status === "completed").length);
+        els.pendingRequestsTab.setAttribute("aria-selected", String(requestFilter === "pending"));
+        els.approvedRequestsTab.setAttribute("aria-selected", String(requestFilter === "approved"));
+        els.allRequestsTab.setAttribute("aria-selected", String(requestFilter === "all"));
+        const activeTab = requestFilter === "approved"
+          ? els.approvedRequestsTab
+          : requestFilter === "all" ? els.allRequestsTab : els.pendingRequestsTab;
+        els.requestTablePanel.setAttribute("aria-labelledby", activeTab.id);
+        els.requestTableBody.replaceChildren();
+
+        const visibleRequests = requests.filter((request) => {
+          if (requestFilter === "pending") return request.status === "pending";
+          if (requestFilter === "approved") return request.status === "completed";
+          return true;
+        });
+        if (!authUser || !visibleRequests.length) {
+          setEmptyRow(!authUser
+            ? "Sign in to view collaboration requests."
+            : requestFilter === "pending"
+              ? "No pending sign-offs. New requests waiting for your approval will appear here."
+              : requestFilter === "approved"
+                ? "No approved sign-offs yet. Completed requests will appear here."
+                : "No collaboration requests yet.");
+          return;
+        }
+
+        for (const request of visibleRequests) {
+          const row = document.createElement("tr");
+          const documentCell = document.createElement("td");
+          const fileName = document.createElement("span");
+          fileName.className = "request-file";
+          fileName.textContent = request.file_name;
+          const date = new Date(request.created_at);
+          const dateLabel = document.createElement("span");
+          dateLabel.className = "request-subtext";
+          dateLabel.textContent = Number.isNaN(date.getTime())
+            ? "Date unavailable"
+            : `Created ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)}`;
+          documentCell.append(fileName, dateLabel);
+
+          const requesterCell = document.createElement("td");
+          requesterCell.textContent = request.owner_id === authUser.id ? "You" : request.owner_name;
+          const signers = Array.isArray(request.signers) ? request.signers : [];
+          const signedCount = signers.filter((signer) => signer.status === "signed").length;
+          const progressCell = document.createElement("td");
+          progressCell.textContent = `${signedCount} of ${request.signer_count} signed`;
+          if (request.status === "pending") {
+            const activeSigner = signers.find((signer) => signer.position === request.active_signer_position);
+            const note = document.createElement("span");
+            note.className = "request-subtext";
+            note.textContent = request.owner_id === authUser.id || request.my_status === "signed"
+              ? `Waiting for ${activeSigner?.display_name || "the next signer"}`
+              : request.my_position === request.active_signer_position
+                ? "Waiting for your approval"
+                : `Waiting for signer ${request.active_signer_position}`;
+            progressCell.append(note);
+          }
+
+          const statusCell = document.createElement("td");
+          const status = document.createElement("span");
+          status.className = `request-status${request.status === "completed" ? " approved" : request.status === "cancelled" ? " cancelled" : ""}`;
+          status.textContent = request.status === "completed" ? "Approved" : request.status === "cancelled" ? "Cancelled" : "Pending";
+          statusCell.append(status);
+
+          const actionCell = document.createElement("td");
+          if (request.status === "completed") {
+            const downloadButton = document.createElement("button");
+            downloadButton.type = "button";
+            downloadButton.className = "request-action";
+            downloadButton.textContent = "Download PDF";
+            downloadButton.setAttribute("aria-label", `Download approved PDF ${request.file_name}`);
+            downloadButton.addEventListener("click", () => void downloadRequest(request, downloadButton));
+            actionCell.append(downloadButton);
+          } else if (
+            request.status === "pending" &&
+            request.owner_id !== authUser.id &&
+            request.my_status === "pending" &&
+            request.my_position === request.active_signer_position
+          ) {
+            const reviewButton = document.createElement("button");
+            reviewButton.type = "button";
+            reviewButton.className = "request-action";
+            reviewButton.textContent = "Review & sign";
+            reviewButton.addEventListener("click", () => {
+              window.location.href = `index.html?request=${encodeURIComponent(request.request_id)}`;
+            });
+            actionCell.append(reviewButton);
+          } else {
+            actionCell.textContent = "—";
+          }
+          row.append(documentCell, requesterCell, progressCell, statusCell, actionCell);
+          els.requestTableBody.append(row);
+        }
+      }
+
+      async function downloadRequest(request, button) {
+        if (!authClient) return;
+        button.disabled = true;
+        try {
+          const { data, error } = await authClient.storage.from("signing-documents").download(request.storage_path);
+          if (error) throw error;
+          const url = URL.createObjectURL(data);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${request.file_name.replace(/\.pdf$/i, "")}-signed.pdf`;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+          console.error("Completed PDF could not be downloaded:", error);
+          els.loadError.textContent = error?.message || "The completed PDF could not be downloaded.";
+          els.loadError.hidden = false;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function selectFilter(filter, focus = false) {
+        requestFilter = filter;
+        renderRequests();
+        if (!focus) return;
+        const tab = filter === "approved" ? els.approvedRequestsTab : filter === "all" ? els.allRequestsTab : els.pendingRequestsTab;
+        tab.focus();
+      }
+
+      els.refreshRequests.addEventListener("click", () => void refreshRequests());
+      els.pendingRequestsTab.addEventListener("click", () => selectFilter("pending"));
+      els.approvedRequestsTab.addEventListener("click", () => selectFilter("approved"));
+      els.allRequestsTab.addEventListener("click", () => selectFilter("all"));
+      [els.pendingRequestsTab, els.approvedRequestsTab, els.allRequestsTab].forEach((tab, index, tabs) => {
+        tab.addEventListener("keydown", (event) => {
+          let nextIndex = index;
+          if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+          else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+          else if (event.key === "Home") nextIndex = 0;
+          else if (event.key === "End") nextIndex = tabs.length - 1;
+          else return;
+          event.preventDefault();
+          tabs[nextIndex].click();
+          tabs[nextIndex].focus();
+        });
+      });
+      els.signOutButton.addEventListener("click", async () => {
+        if (!authClient) return;
+        els.signOutButton.disabled = true;
+        try {
+          const { error } = await authClient.auth.signOut();
+          if (error) throw error;
+          setSignedInUser(null);
+        } catch (error) {
+          console.error("Supabase sign-out failed:", error);
+          els.accountMessage.textContent = error?.message || "Sign out failed. Please try again.";
+        } finally {
+          els.signOutButton.disabled = false;
+        }
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && authUser && authClient) void refreshRequests(false);
+      });
+      window.addEventListener("storage", (event) => {
+        if (!authUser || event.key !== notificationStorageKey(authUser.id)) return;
+        try {
+          const savedState = event.newValue ? JSON.parse(event.newValue) : null;
+          notificationSnapshot = savedState?.snapshot || null;
+          unreadRequestIds = new Set(Array.isArray(savedState?.unread) ? savedState.unread : []);
+          renderNotificationBadge();
+        } catch (error) {
+          console.error("Could not synchronize collaboration notifications:", error);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

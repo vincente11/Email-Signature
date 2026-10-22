@@ -10,6 +10,6 @@ If you already ran the original collaboration migration, also run [`supabase/mig
 
 The migration creates a private `signing-documents` Storage bucket, account directory search, sequential signing request tables, and row-level/storage access policies. The PDF is uploaded only when its owner starts a request. Only the owner, the current signer, and signers who have already signed can access an in-progress document; completed documents are available to the request participants. The browser's public Supabase key is used with authenticated sessions; do not put a service-role key in the website.
 
-Requests notify recipients in the in-app **Sign-off requests** panel. Recipients need to sign in and refresh that panel to see new requests. Signers act in the order selected by the requester; only the active signer can open and update the private PDF. Requests support up to 10 signers.
+Requests are managed on the dedicated [`collaboration.html`](./collaboration.html) page. The navigation badge shows new requests and changes to signing progress; the page refreshes automatically while open. Signers act in the order selected by the requester; only the active signer can open and update the private PDF. Requests support up to 10 signers.
 
 Signatures remain visible marks in the PDF, not certificate-backed digital signatures or identity verification.
