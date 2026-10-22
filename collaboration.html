@@ -70,6 +70,23 @@
     .request-action { padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--green); font-size: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .request-action:hover { border-color: #9bb5a2; background: #f8faf7; }
     .request-action:disabled { opacity: .5; cursor: wait; }
+    .request-detail-row > td { padding: 0 !important; background: #fbfcfa; }
+    .request-detail { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(280px, 1.1fr); gap: 24px; padding: 22px; }
+    .request-detail h3, .request-detail h4 { margin: 0 0 13px; color: var(--ink); font-size: 13px; }
+    .request-detail h4 { margin-top: 0; }
+    .signer-timeline, .audit-events { margin: 0; padding: 0; list-style: none; }
+    .signer-timeline { display: grid; gap: 10px; }
+    .signer-step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: start; }
+    .signer-step-marker { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #d8ded8; border-radius: 50%; background: white; color: var(--muted); font-size: 9px; font-weight: 700; }
+    .signer-step.signed .signer-step-marker, .signer-step.active .signer-step-marker { border-color: var(--green); background: var(--green); color: white; }
+    .signer-step strong, .audit-events strong { display: block; color: #354039; font-size: 11px; font-weight: 600; }
+    .signer-step-status, .audit-event-time { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .audit-events { display: grid; gap: 0; }
+    .audit-events li { position: relative; padding: 0 0 15px 17px; border-left: 1px solid #dfe6dd; }
+    .audit-events li:last-child { padding-bottom: 0; border-left-color: transparent; }
+    .audit-events li::before { position: absolute; top: 3px; left: -4px; width: 7px; height: 7px; border: 1px solid #7d9b83; border-radius: 50%; background: white; content: ""; }
+    .timeline-message { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .timeline-error { color: #8a4a37; }
     .request-table-empty { padding: 45px 16px !important; color: var(--muted) !important; text-align: center; }
     .load-error { margin: 12px 0 0; color: #8a4a37; font-size: 11px; }
     .site-footer { padding: 16px 24px; border-top: 1px solid var(--line); background: #fbfbf9; color: var(--muted); font-size: 11px; text-align: center; }
@@ -85,6 +102,7 @@
       .account-actions { width: 100%; }
       .account-email { min-width: 0; flex: 1; }
       .request-table { min-width: 690px; }
+      .request-detail { grid-template-columns: 1fr; gap: 20px; padding: 18px; }
     }
     @media (max-width: 430px) {
       .brand { gap: 8px; }
@@ -193,6 +211,10 @@
       let requestFilter = "pending";
       let notificationSnapshot = null;
       let unreadRequestIds = new Set();
+      let expandedTimelines = new Set();
+      let timelineEvents = new Map();
+      let timelineErrors = new Map();
+      let timelineLoading = new Set();
       let notificationPollTimer = null;
       let refreshInProgress = false;
 
@@ -307,6 +329,12 @@
         authUser = user;
         browserNotifications.setUserId(user?.id || null);
         const userChanged = previousUserId !== (user?.id || null);
+        if (userChanged) {
+          expandedTimelines = new Set();
+          timelineEvents = new Map();
+          timelineErrors = new Map();
+          timelineLoading = new Set();
+        }
         els.accountEmail.hidden = !user;
         els.accountEmail.textContent = user?.email || "";
         els.refreshRequests.disabled = !user;
@@ -456,8 +484,162 @@
           } else {
             actionCell.textContent = "—";
           }
+          const timelineButton = document.createElement("button");
+          timelineButton.type = "button";
+          timelineButton.className = "request-action";
+          timelineButton.textContent = expandedTimelines.has(request.request_id) ? "Hide timeline" : "View timeline";
+          timelineButton.setAttribute("aria-expanded", String(expandedTimelines.has(request.request_id)));
+          timelineButton.setAttribute("aria-label", `${expandedTimelines.has(request.request_id) ? "Hide" : "View"} signing timeline for ${request.file_name}`);
+          timelineButton.addEventListener("click", () => toggleTimeline(request.request_id));
+          actionCell.append(timelineButton);
           row.append(documentCell, requesterCell, progressCell, statusCell, actionCell);
           els.requestTableBody.append(row);
+          if (expandedTimelines.has(request.request_id)) {
+            els.requestTableBody.append(renderTimelineRow(request));
+          }
+        }
+      }
+
+      function formatTimelineDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+          ? "Time unavailable"
+          : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+      }
+
+      function createTimelineMessage(text, isError = false) {
+        const message = document.createElement("p");
+        message.className = `timeline-message${isError ? " timeline-error" : ""}`;
+        message.textContent = text;
+        return message;
+      }
+
+      function renderTimelineRow(request) {
+        const row = document.createElement("tr");
+        row.className = "request-detail-row";
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        const detail = document.createElement("section");
+        detail.className = "request-detail";
+        detail.setAttribute("aria-label", `Signing timeline for ${request.file_name}`);
+
+        const stepsSection = document.createElement("section");
+        const stepsHeading = document.createElement("h3");
+        stepsHeading.textContent = "Signer order and status";
+        const steps = document.createElement("ol");
+        steps.className = "signer-timeline";
+        const signers = Array.isArray(request.signers) ? request.signers : [];
+        for (const signer of signers) {
+          const step = document.createElement("li");
+          const isSigned = signer.status === "signed";
+          const isActive = request.status === "pending" && signer.position === request.active_signer_position;
+          const cancelled = request.status === "cancelled" && !isSigned;
+          step.className = `signer-step${isSigned ? " signed" : isActive ? " active" : ""}`;
+
+          const marker = document.createElement("span");
+          marker.className = "signer-step-marker";
+          marker.setAttribute("aria-hidden", "true");
+          marker.textContent = String(signer.position);
+          const content = document.createElement("div");
+          const name = document.createElement("strong");
+          name.textContent = `Step ${signer.position}: ${signer.display_name || "Signer"}${signer.user_id === authUser.id ? " (You)" : ""}`;
+          const state = document.createElement("span");
+          state.className = "signer-step-status";
+          state.textContent = isSigned
+            ? "Signed"
+            : cancelled
+              ? "Not signed — request cancelled"
+              : isActive
+                ? signer.user_id === authUser.id ? "Your turn to sign" : "Current signer"
+                : request.status === "completed"
+                  ? "Signed"
+                  : "Waiting";
+          content.append(name, state);
+          step.append(marker, content);
+          steps.append(step);
+        }
+        if (signers.length) stepsSection.append(stepsHeading, steps);
+        else stepsSection.append(stepsHeading, createTimelineMessage("No signers are listed for this request."));
+
+        const historySection = document.createElement("section");
+        const historyHeading = document.createElement("h3");
+        historyHeading.textContent = "Audit history";
+        historySection.append(historyHeading);
+        if (timelineLoading.has(request.request_id)) {
+          historySection.append(createTimelineMessage("Loading audit history…"));
+        } else if (timelineErrors.has(request.request_id)) {
+          historySection.append(createTimelineMessage(timelineErrors.get(request.request_id), true));
+        } else {
+          const events = timelineEvents.get(request.request_id) || [];
+          if (!events.length) {
+            historySection.append(createTimelineMessage("No activity has been recorded for this request yet."));
+          } else {
+            const list = document.createElement("ol");
+            list.className = "audit-events";
+            for (const event of events) {
+              const item = document.createElement("li");
+              const title = document.createElement("strong");
+              if (event.event_type === "request_created") {
+                title.textContent = "Request created";
+              } else if (event.event_type === "request_started") {
+                title.textContent = "Request sent for sign-off";
+              } else if (event.event_type === "request_completed") {
+                title.textContent = "Request completed";
+              } else if (event.event_type === "request_cancelled") {
+                title.textContent = "Request cancelled";
+              } else if (event.event_type === "signer_signed") {
+                title.textContent = `${event.actor_id === authUser.id ? "You" : event.actor_name || "A signer"} signed${event.signer_order ? ` (step ${event.signer_order})` : ""}`;
+              } else {
+                title.textContent = `Request status changed${event.to_status ? ` to ${event.to_status}` : ""}`;
+              }
+              const time = document.createElement("time");
+              time.className = "audit-event-time";
+              time.dateTime = event.created_at;
+              time.textContent = `${event.actor_name && event.event_type !== "signer_signed" ? `By ${event.actor_id === authUser.id ? "you" : event.actor_name} · ` : ""}${formatTimelineDate(event.created_at)}`;
+              item.append(title, time);
+              list.append(item);
+            }
+            historySection.append(list);
+          }
+        }
+
+        detail.append(stepsSection, historySection);
+        cell.append(detail);
+        row.append(cell);
+        return row;
+      }
+
+      async function toggleTimeline(requestId) {
+        if (expandedTimelines.has(requestId)) {
+          expandedTimelines.delete(requestId);
+          renderRequests();
+          return;
+        }
+        expandedTimelines.add(requestId);
+        renderRequests();
+        if (timelineEvents.has(requestId) || timelineLoading.has(requestId)) return;
+
+        const expectedUserId = authUser?.id;
+        timelineLoading.add(requestId);
+        timelineErrors.delete(requestId);
+        renderRequests();
+        try {
+          const { data, error } = await authClient
+            .from("signing_request_events")
+            .select("event_type,actor_id,actor_name,signer_order,to_status,created_at")
+            .eq("request_id", requestId)
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true });
+          if (error) throw error;
+          if (authUser?.id !== expectedUserId) return;
+          timelineEvents.set(requestId, data || []);
+        } catch (error) {
+          if (authUser?.id !== expectedUserId) return;
+          console.error("Signing audit history could not be loaded:", error);
+          timelineErrors.set(requestId, error?.message || "Audit history could not be loaded. Try refreshing.");
+        } finally {
+          timelineLoading.delete(requestId);
+          if (authUser?.id === expectedUserId && expandedTimelines.has(requestId)) renderRequests();
         }
       }
 

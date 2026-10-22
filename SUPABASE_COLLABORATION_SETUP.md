@@ -8,6 +8,8 @@ The sign-off workflow uses the existing Supabase project and must be installed b
 
 If you already ran the original collaboration migration, also run [`supabase/migrations/20261022000200_fix_signer_order_insert.sql`](./supabase/migrations/20261022000200_fix_signer_order_insert.sql) in the SQL Editor. This corrects the request-start function to write to the existing `signer_order` column.
 
+To add the participant-visible signer timeline and audit history, run [`supabase/migrations/20261022000400_signing_request_audit_timeline.sql`](./supabase/migrations/20261022000400_signing_request_audit_timeline.sql) in the SQL Editor after the collaboration migration. It records request creation, start, completion or cancellation, and each signer approval. Request owners and signers can view the ordered signer steps and event timestamps from the collaboration page.
+
 The migration creates a private `signing-documents` Storage bucket, account directory search, sequential signing request tables, and row-level/storage access policies. The PDF is uploaded only when its owner starts a request. Only the owner, the current signer, and signers who have already signed can access an in-progress document; completed documents are available to the request participants. The browser's public Supabase key is used with authenticated sessions; do not put a service-role key in the website.
 
 Requests are managed on the dedicated [`collaboration.html`](./collaboration.html) page. The navigation badge shows new requests and changes to signing progress; the page refreshes automatically while open. Signers act in the order selected by the requester; only the active signer can open and update the private PDF. Requests support up to 10 signers.
