@@ -367,6 +367,9 @@
   <dialog id="requestDialog" class="request-dialog" aria-labelledby="requestDialogTitle">
     <h2 id="requestDialogTitle">Request sign-off</h2>
     <p>Choose registered users to sign this PDF in order. The document is stored privately and each signer can access it when it is their turn.</p>
+    <label for="requestMessage">Message to recipients <span>(optional)</span></label>
+    <textarea id="requestMessage" maxlength="2000" rows="4" placeholder="Add context or instructions for the signers"></textarea>
+    <div class="message-character-count"><span id="requestMessageCount">0</span>/2000</div>
     <label for="signerSearch">Find a user by name or email</label>
     <input id="signerSearch" type="search" autocomplete="off" placeholder="Type at least 2 characters">
     <div id="signerResults" class="signer-results" aria-live="polite"></div>
@@ -405,6 +408,8 @@
         browserNotificationToggle: $("browserNotificationToggle"),
         openRequestDialog: $("openRequestDialog"),
         requestDialog: $("requestDialog"),
+        requestMessage: $("requestMessage"),
+        requestMessageCount: $("requestMessageCount"),
         signerSearch: $("signerSearch"),
         signerResults: $("signerResults"),
         selectedSigners: $("selectedSigners"),
@@ -820,6 +825,8 @@
           return;
         }
         selectedSigners = [];
+        els.requestMessage.value = "";
+        els.requestMessageCount.textContent = "0";
         els.signerSearch.value = "";
         els.signerResults.replaceChildren();
         renderSelectedSigners();
@@ -851,6 +858,7 @@
             owner_id: authUser.id,
             file_name: sourceFileName,
             storage_path: storagePath,
+            request_message: els.requestMessage.value.trim() || null,
             status: "draft"
           });
           if (insertError) throw insertError;
@@ -907,8 +915,8 @@
             .from("signing-documents")
             .download(request.storage_path);
           if (error) throw error;
-          await loadPdf(new File([data], request.file_name, { type: "application/pdf" }), true);
-          if (!pdfDocument) return;
+          const opened = await loadPdf(new File([data], request.file_name, { type: "application/pdf" }), true);
+          if (!opened) return;
           activeSigningRequest = request;
           els.openRequestDialog.disabled = true;
           els.downloadButton.textContent = "Submit signature";
@@ -1011,8 +1019,6 @@
 
       async function loadPdf(file, isSharedRequest = false) {
         if (!file) return;
-        activeSigningRequest = null;
-        els.downloadButton.textContent = "Download signed PDF";
         const maximumFileBytes = isSharedRequest ? MAX_SHARED_FILE_BYTES : MAX_FILE_BYTES;
         if (file.size > maximumFileBytes) {
           showToast(`This PDF exceeds the ${isSharedRequest ? "50 MB shared-document" : "25 MB"} limit.`);
@@ -1029,6 +1035,7 @@
           return;
         }
 
+        let documentReplaced = false;
         setLoading(true, "Reading your document…");
         try {
           const bytes = new Uint8Array(await file.arrayBuffer());
@@ -1037,6 +1044,9 @@
           if (loadedDocument.numPages < 1) {
             throw new Error("The PDF does not contain any pages.");
           }
+          activeSigningRequest = null;
+          els.downloadButton.textContent = "Download signed PDF";
+          documentReplaced = true;
           pdfDocument = loadedDocument;
           originalPdfBytes = bytes;
           sourceFileName = file.name;
@@ -1060,8 +1070,9 @@
           els.zoomOut.disabled = false;
           els.zoomIn.disabled = false;
           await renderPage();
+          return true;
         } catch (error) {
-          resetDocument();
+          if (documentReplaced) resetDocument();
           showToast(error && error.name === "PasswordException"
             ? "This PDF is password-protected. Please use an unlocked PDF."
             : "We couldn't open this PDF. Check that it is a valid, unprotected PDF.");
@@ -1432,19 +1443,25 @@
             rotate: window.PDFLib.degrees(rotation)
           });
           const signedBytes = await pdf.save();
+          let outputBlob = new Blob([signedBytes], { type: "application/pdf" });
           if (isSharedSigning && activeSigningRequest) {
             setLoading(true, "Submitting your signature…");
-            const { error: uploadError } = await authClient.storage
-              .from("signing-documents")
-              .upload(activeSigningRequest.storage_path, new Blob([signedBytes], { type: "application/pdf" }), {
-                contentType: "application/pdf",
-                upsert: true
-              });
-            if (uploadError) throw uploadError;
-            const { data: requestStatus, error: completionError } = await authClient.rpc("complete_signing_step", {
-              p_request_id: activeSigningRequest.request_id
+            const { data: result, error: signingError } = await authClient.functions.invoke("sign-document", {
+              body: {
+                requestId: activeSigningRequest.request_id,
+                expectedPath: activeSigningRequest.storage_path,
+                placement: stampPlacement,
+                signature: signatureDataUrl
+              }
             });
-            if (completionError) throw completionError;
+            if (signingError || result?.error) {
+              throw new Error(result?.error || "Submission could not be confirmed. Refresh and reopen the request before retrying.");
+            }
+            const requestStatus = result.status;
+            const { data: committedPdf, error: downloadError } = await authClient.storage
+              .from("signing-documents").download(result.storagePath);
+            if (downloadError) throw new Error("Signature submitted, but download failed. Download the PDF from Collaboration.");
+            outputBlob = committedPdf;
             activeSigningRequest = null;
             els.downloadButton.textContent = "Download signed PDF";
             els.openRequestDialog.disabled = !authUser || !pdfDocument;
@@ -1453,7 +1470,7 @@
               ? "All signers are done. The completed PDF is ready to download."
               : "Signature submitted. The document is now with the next signer.");
           }
-          const blob = new Blob([signedBytes], { type: "application/pdf" });
+          const blob = outputBlob;
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -1522,6 +1539,9 @@
       });
       els.cancelRequestDialog.addEventListener("click", () => els.requestDialog.close());
       els.startRequestButton.addEventListener("click", submitSigningRequest);
+      els.requestMessage.addEventListener("input", () => {
+        els.requestMessageCount.textContent = String(els.requestMessage.value.length);
+      });
       els.signerSearch.addEventListener("input", () => {
         window.clearTimeout(signerSearchTimer);
         els.signerResults.replaceChildren();

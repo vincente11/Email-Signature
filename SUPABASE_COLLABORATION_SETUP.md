@@ -12,6 +12,8 @@ To add the participant-visible signer timeline and audit history, run [`supabase
 
 To show the exact approval date and time for each signer (including requests completed before audit logging was installed), run [`supabase/migrations/20261022000600_signer_approval_timestamps.sql`](./supabase/migrations/20261022000600_signer_approval_timestamps.sql) in the SQL Editor. It exposes the existing signer `signed_at` timestamps to participants through the request list.
 
+To let senders include a note and participants reply, run [`supabase/migrations/20261022000700_signing_request_messages.sql`](./supabase/migrations/20261022000700_signing_request_messages.sql) in the SQL Editor. The initial note is stored with the request; replies are restricted to its owner and assigned signers, and each message is limited to 2,000 characters.
+
 To let request owners send browser-push reminders, run [`supabase/migrations/20261022000500_signing_reminders.sql`](./supabase/migrations/20261022000500_signing_reminders.sql) after migration `20261022000400`. Deploy the updated `send-push` function with `supabase functions deploy send-push --project-ref mvfnycefnmpwtuoajliq`. An owner can remind only the active signer, at most once per request per signer turn every 24 hours. The current signer must have push alerts enabled and must not have opted out; the collaboration page has a reminder opt-out checkbox. Turning off push alerts also prevents push reminders.
 
 The migration creates a private `signing-documents` Storage bucket, account directory search, sequential signing request tables, and row-level/storage access policies. The PDF is uploaded only when its owner starts a request. Only the owner, the current signer, and signers who have already signed can access an in-progress document; completed documents are available to the request participants. The browser's public Supabase key is used with authenticated sessions; do not put a service-role key in the website.
@@ -38,3 +40,22 @@ Push delivery requires a service worker, a VAPID key pair, a Supabase Edge Funct
 Keep `VAPID_PRIVATE_KEY` and `PUSH_SENDER_SECRET` only in Supabase secrets/Vault. Never commit them or place them in the static website. The migration warns in the database logs if its Vault secret is missing.
 
 Signatures remain visible marks in the PDF, not certificate-backed digital signatures or identity verification.
+
+## Immutable signing versions (required for the updated frontend)
+
+1. Run `supabase/migrations/20261023000100_immutable_signing_versions.sql` after the previous migrations.
+2. Deploy `supabase functions deploy sign-document --project-ref mvfnycefnmpwtuoajliq`.
+3. Deploy the updated static frontend and reopen any requests already open in browser tabs.
+
+The function validates the signed-in user, downloads the current PDF itself, appends the submitted signature image, and uploads a new immutable version. Browsers can no longer overwrite shared PDFs or call the old approval function. A database transaction advances the signer and changes the current document path together, rejecting submissions based on an older version. Original PDFs and prior signed versions remain in private storage. Existing requests continue using their original path until the next signature.
+
+The function explicitly validates the bearer token with Supabase Auth; gateway JWT verification is disabled to support the project's key configuration. Service-role credentials stay inside the function. Signature artwork is still supplied by the browser; visible signatures are not cryptographic identity certificates. Server composition prevents a client from substituting an entire replacement PDF, but artwork can cover content within the selected signature rectangle.
+
+If uploading succeeds but committing is uncertain, an unreferenced private version may remain. It is intentionally retained to avoid deleting a document whose commit succeeded despite a lost response. Refresh Collaboration before retrying an uncertain submission.
+
+Validation checklist in a staging Supabase project:
+- Complete a two-signer request and confirm both marks remain in the final download.
+- Try direct overwrites and the old approval RPC as an authenticated signer; both must be denied.
+- Open the same request in two tabs and submit both; only one version may commit.
+- Verify rotated/cropped PDF pages retain the signature placement shown in the preview.
+- Select an oversized or non-PDF file while a request is open; the original request must remain active.

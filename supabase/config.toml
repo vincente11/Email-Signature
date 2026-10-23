@@ -2,3 +2,6 @@ project_id = "mvfnycefnmpwtuoajliq"
 
 [functions.send-push]
 verify_jwt = false
+
+[functions.sign-document]
+verify_jwt = false

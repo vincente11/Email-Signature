@@ -80,6 +80,15 @@
     .request-detail { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(280px, 1.1fr); gap: 24px; padding: 22px; }
     .request-detail h3, .request-detail h4 { margin: 0 0 13px; color: var(--ink); font-size: 13px; }
     .request-detail h4 { margin-top: 0; }
+    .request-conversation { grid-column: 1 / -1; padding-top: 17px; border-top: 1px solid var(--line); }
+    .conversation-messages { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .conversation-message { max-width: 760px; padding: 10px 12px; border: 1px solid #e6ebe5; border-radius: 9px; background: #fff; }
+    .conversation-message p { margin: 0; color: #354039; font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .conversation-message time { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+    .conversation-reply-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; margin-top: 13px; }
+    .conversation-reply-form textarea { width: 100%; min-height: 42px; max-height: 130px; resize: vertical; padding: 10px 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 11px; }
+    .conversation-reply-form button { align-self: end; min-height: 38px; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--green); color: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
+    .conversation-reply-form button:disabled { opacity: .55; cursor: wait; }
     .signer-timeline, .audit-events { margin: 0; padding: 0; list-style: none; }
     .signer-timeline { display: grid; gap: 10px; }
     .signer-step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: start; }
@@ -109,6 +118,9 @@
       .account-email { min-width: 0; flex: 1; }
       .request-table { min-width: 690px; }
       .request-detail { grid-template-columns: 1fr; gap: 20px; padding: 18px; }
+      .request-conversation { grid-column: auto; }
+      .conversation-reply-form { grid-template-columns: 1fr; }
+      .conversation-reply-form button { justify-self: end; }
     }
     @media (max-width: 430px) {
       .brand { gap: 8px; }
@@ -232,6 +244,9 @@
       let timelineEvents = new Map();
       let timelineErrors = new Map();
       let timelineLoading = new Set();
+      let conversations = new Map();
+      let conversationErrors = new Map();
+      let conversationLoading = new Set();
       let reminderCooldowns = new Map();
       let notificationPollTimer = null;
       let refreshInProgress = false;
@@ -352,6 +367,9 @@
           timelineEvents = new Map();
           timelineErrors = new Map();
           timelineLoading = new Set();
+          conversations = new Map();
+          conversationErrors = new Map();
+          conversationLoading = new Set();
           reminderCooldowns = new Map();
         }
         els.accountEmail.hidden = !user;
@@ -730,7 +748,58 @@
           }
         }
 
-        detail.append(stepsSection, historySection);
+        const conversationSection = document.createElement("section");
+        conversationSection.className = "request-conversation";
+        const conversationHeading = document.createElement("h3");
+        conversationHeading.textContent = "Conversation";
+        conversationSection.append(conversationHeading);
+        if (conversationLoading.has(request.request_id)) {
+          conversationSection.append(createTimelineMessage("Loading messages…"));
+        } else if (conversationErrors.has(request.request_id)) {
+          conversationSection.append(createTimelineMessage(conversationErrors.get(request.request_id), true));
+        } else {
+          const conversation = conversations.get(request.request_id);
+          if (!conversation) {
+            conversationSection.append(createTimelineMessage("No messages yet."));
+          } else {
+            const messages = document.createElement("ol");
+            messages.className = "conversation-messages";
+            if (conversation.initialMessage) {
+              messages.append(createConversationMessage(
+                request.owner_id === authUser.id ? "You" : request.owner_name,
+                conversation.initialMessage,
+                conversation.initialMessageAt,
+              ));
+            }
+            for (const message of conversation.replies) {
+              messages.append(createConversationMessage(
+                message.sender_id === authUser.id ? "You" : message.sender_name,
+                message.body,
+                message.created_at,
+              ));
+            }
+            if (messages.childElementCount) conversationSection.append(messages);
+            else conversationSection.append(createTimelineMessage("No messages yet."));
+          }
+        }
+        const replyForm = document.createElement("form");
+        replyForm.className = "conversation-reply-form";
+        const replyInput = document.createElement("textarea");
+        replyInput.maxLength = 2000;
+        replyInput.rows = 2;
+        replyInput.placeholder = "Write a reply…";
+        replyInput.setAttribute("aria-label", `Reply about ${request.file_name}`);
+        const replyButton = document.createElement("button");
+        replyButton.type = "submit";
+        replyButton.textContent = "Send reply";
+        replyForm.append(replyInput, replyButton);
+        replyForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          void sendRequestReply(request, replyInput, replyButton);
+        });
+        conversationSection.append(replyForm);
+
+        detail.append(stepsSection, historySection, conversationSection);
         cell.append(detail);
         row.append(cell);
         return row;
@@ -747,9 +816,24 @@
         if (timelineEvents.has(requestId) || timelineLoading.has(requestId)) return;
 
         const expectedUserId = authUser?.id;
-        timelineLoading.add(requestId);
-        timelineErrors.delete(requestId);
+        const request = requests.find((item) => item.request_id === requestId);
+        if (!request) return;
+        const tasks = [];
+        if (!timelineEvents.has(requestId)) {
+          timelineLoading.add(requestId);
+          timelineErrors.delete(requestId);
+          tasks.push(loadTimeline(requestId, expectedUserId));
+        }
+        if (!conversations.has(requestId)) {
+          conversationLoading.add(requestId);
+          conversationErrors.delete(requestId);
+          tasks.push(loadConversation(request, expectedUserId));
+        }
         renderRequests();
+        await Promise.all(tasks);
+      }
+
+      async function loadTimeline(requestId, expectedUserId) {
         try {
           const { data, error } = await authClient
             .from("signing_request_events")
@@ -767,6 +851,79 @@
         } finally {
           timelineLoading.delete(requestId);
           if (authUser?.id === expectedUserId && expandedTimelines.has(requestId)) renderRequests();
+        }
+      }
+
+      async function loadConversation(request, expectedUserId) {
+        const requestId = request.request_id;
+        try {
+          const [requestResult, messagesResult] = await Promise.all([
+            authClient.from("signing_requests")
+              .select("request_message,created_at")
+              .eq("id", requestId)
+              .maybeSingle(),
+            authClient.from("signing_request_messages")
+              .select("id,sender_id,sender_name,body,created_at")
+              .eq("request_id", requestId)
+              .order("created_at", { ascending: true })
+              .order("id", { ascending: true }),
+          ]);
+          if (requestResult.error) throw requestResult.error;
+          if (messagesResult.error) throw messagesResult.error;
+          if (authUser?.id !== expectedUserId) return;
+          conversations.set(requestId, {
+            initialMessage: requestResult.data?.request_message || "",
+            initialMessageAt: requestResult.data?.created_at || request.created_at,
+            replies: messagesResult.data || [],
+          });
+        } catch (error) {
+          if (authUser?.id !== expectedUserId) return;
+          console.error("Signing request conversation could not be loaded:", error);
+          conversationErrors.set(requestId, error?.message || "Conversation could not be loaded. Try refreshing.");
+        } finally {
+          conversationLoading.delete(requestId);
+          if (authUser?.id === expectedUserId && expandedTimelines.has(requestId)) renderRequests();
+        }
+      }
+
+      function createConversationMessage(senderName, body, createdAt) {
+        const item = document.createElement("li");
+        item.className = "conversation-message";
+        const messageBody = document.createElement("p");
+        messageBody.textContent = body;
+        const time = document.createElement("time");
+        time.dateTime = createdAt;
+        time.textContent = `${senderName} · ${formatTimelineDate(createdAt)}`;
+        item.append(messageBody, time);
+        return item;
+      }
+
+      async function sendRequestReply(request, input, button) {
+        const body = input.value.trim();
+        if (!body || !authClient || !authUser) return;
+        const requestId = request.request_id;
+        const expectedUserId = authUser.id;
+        button.disabled = true;
+        button.textContent = "Sending…";
+        try {
+          const { error } = await authClient.rpc("send_signing_request_message", {
+            p_request_id: requestId,
+            p_body: body,
+          });
+          if (error) throw error;
+          if (authUser?.id !== expectedUserId) return;
+          input.value = "";
+          conversations.delete(requestId);
+          conversationErrors.delete(requestId);
+          await loadConversation(request, expectedUserId);
+        } catch (error) {
+          if (authUser?.id !== expectedUserId) return;
+          console.error("Signing request reply could not be sent:", error);
+          els.loadError.textContent = error?.message || "Your reply could not be sent.";
+          els.loadError.hidden = false;
+        } finally {
+          button.disabled = false;
+          button.textContent = "Send reply";
         }
       }
 
