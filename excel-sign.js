@@ -67,6 +67,44 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   const sheetRel = elements(workbookRels, "Relationship").find((el) => el.getAttribute("Id") === sheetId);
   const sheetPath = resolve("xl/workbook.xml", sheetRel.getAttribute("Target"));
   const sheet = await read(sheetPath);
+  // Use a fresh, undisclosed password for each signed download. Store only its verifier.
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const password = crypto.randomUUID() + crypto.randomUUID();
+  const encoded = new Uint8Array(password.length * 2);
+  for (let i = 0; i < password.length; i++) {
+    encoded[i * 2] = password.charCodeAt(i) & 255;
+    encoded[i * 2 + 1] = password.charCodeAt(i) >>> 8;
+  }
+  const initial = new Uint8Array(salt.length + encoded.length);
+  initial.set(salt); initial.set(encoded, salt.length);
+  let hash = new Uint8Array(await crypto.subtle.digest("SHA-512", initial));
+  const spinCount = 10000;
+  for (let i = 0; i < spinCount; i++) {
+    const input = new Uint8Array(hash.length + 4);
+    input.set(hash);
+    new DataView(input.buffer).setUint32(hash.length, i, true);
+    hash = new Uint8Array(await crypto.subtle.digest("SHA-512", input));
+  }
+  const base64 = (data) => btoa(String.fromCharCode(...data));
+  let protection = elements(sheet, "sheetProtection")[0];
+  if (!protection) {
+    protection = sheet.createElementNS(sns, "sheetProtection");
+    const afterData = elements(sheet, "sheetData")[0];
+    const calculation = elements(sheet, "sheetCalcPr")[0];
+    sheet.documentElement.insertBefore(protection, (calculation || afterData).nextSibling);
+  }
+  protection.removeAttribute("password");
+  for (const [key, value] of Object.entries({ sheet: "1", objects: "1", scenarios: "1", algorithmName: "SHA-512", saltValue: base64(salt), hashValue: base64(hash), spinCount: String(spinCount) })) protection.setAttribute(key, value);
+  let workbookProtection = elements(workbook, "workbookProtection")[0];
+  if (!workbookProtection) {
+    workbookProtection = workbook.createElementNS(sns, "workbookProtection");
+    const before = Array.from(workbook.documentElement.childNodes).find((el) => !["fileVersion", "fileSharing", "workbookPr"].includes(el.localName) && el.nodeType === 1);
+    workbook.documentElement.insertBefore(workbookProtection, before || null);
+  }
+  workbookProtection.removeAttribute("workbookPassword");
+  for (const [key, value] of Object.entries({ lockStructure: "1", workbookAlgorithmName: "SHA-512", workbookSaltValue: base64(salt), workbookHashValue: base64(hash), workbookSpinCount: String(spinCount) })) workbookProtection.setAttribute(key, value);
+  write("xl/workbook.xml", workbook);
+  write(sheetPath, sheet);
   const sheetRelsPath = relPath(sheetPath);
   const sheetRels = await read(sheetRelsPath, blankRels);
   let drawing = elements(sheet, "drawing")[0];
@@ -92,7 +130,7 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   zip.file(imagePath, signature.split(",")[1], { base64: true });
   const imageId = addRel(drawingRels, "image", "/" + imagePath);
   const pictureId = Math.max(0, ...elements(drawingDoc, "cNvPr").map((el) => Number(el.getAttribute("id")) || 0)) + 1;
-  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`);
+  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1" noMove="1" noResize="1" noRot="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData fLocksWithSheet="1"/></xdr:oneCellAnchor>`);
   drawingDoc.documentElement.appendChild(drawingDoc.importNode(anchor.documentElement, true));
   write(drawingPath, drawingDoc); write(drawingRelsPath, drawingRels);
   const types = await read("[Content_Types].xml");
