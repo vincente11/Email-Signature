@@ -239,7 +239,7 @@
     }
   </style>
   <link rel="stylesheet" href="theme.css?v=slate-blue-1">
-  <link rel="stylesheet" href="studio.css?v=1">
+  <link rel="stylesheet" href="studio.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -262,26 +262,25 @@
     <main>
       <section class="intro">
         <div>
-          <div class="eyebrow">Workspace / Documents</div>
-          <h1 id="welcomeHeading">Your signing desk.</h1>
-          <p>A little less paperwork. A lot more done.</p>
-        </div>
-        <div class="intro-meta" aria-label="Supported document formats"><span class="format-pill">PDF</span><span class="format-pill">EXCEL</span></div>
-      </section>
 
-      <ol class="workflow-overview" aria-label="Signing steps"><li><strong>01</strong> Choose a file</li><li><strong>02</strong> Place your signature</li><li><strong>03</strong> Download &amp; share</li></ol>
-      <section id="signingWorkspace" class="workspace" aria-label="Document signing workspace">
-        <aside class="sidebar">
-          <section class="auth-card" aria-labelledby="authHeading">
+          <h1 id="welcomeHeading">Sign a document</h1>
+
+        </div>
+        <div class="intro-meta"><details class="account-menu"><summary>Account</summary>          <section class="auth-card" aria-labelledby="authHeading">
             <h2 id="authHeading" class="auth-heading">Your signer account</h2>
             <p id="authMessage" class="auth-message" role="status">Checking your account…</p>
             <a id="authLink" class="primary-button auth-submit auth-link" href="login.html">Sign in or create account</a>
             <a id="profileLink" class="profile-link" href="login.html?complete-profile=1" hidden>Update name on account</a>
             <button id="authSignOut" class="primary-button auth-submit" type="button" hidden>Sign out</button>
-          </section>
-          <button id="openRequestDialog" class="primary-button request-collaboration-button" type="button" disabled>Request collaboration sign-off</button>
-          <div class="step-label">Step 01</div>
-          <h2 class="step-heading">Choose a document</h2>
+          </section></details></div>
+      </section>
+
+      <section id="signingWorkspace" class="workspace" aria-label="Document signing workspace">
+        <aside class="sidebar">
+
+          <button id="openRequestDialog" class="primary-button request-collaboration-button" type="button" disabled>Request sign-off</button>
+
+          <h2 class="step-heading">Document</h2>
           <div id="fileCard" class="file-card" hidden>
             <div class="file-icon" aria-hidden="true">PDF</div>
             <div class="file-meta">
@@ -300,8 +299,8 @@
 
           <div style="height: 22px"></div>
           <div class="divider"></div>
-          <div class="step-label">Step 02</div>
-          <h2 class="step-heading">Your account signature</h2>
+
+          <h2 class="step-heading">Signature</h2>
           <p id="signatureAuthHint" class="signature-account-note">Sign in with a saved first and last name to use your account signature.</p>
           <img id="signaturePreview" class="signature-preview" alt="Signature preview">
 
@@ -314,7 +313,7 @@
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v7m0 0 2.5-2.5M8 10 5.5 7.5M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Download signed PDF
             </button>
-            <p class="disclaimer">This adds a visual signature mark to your PDF. It does not create a certificate-backed digital signature or verify identity.</p>
+            <details class="signature-details"><summary>About this signature</summary><p class="disclaimer">This adds a visual signature mark to your document. It does not create a certificate-backed digital signature or verify identity.</p></details>
           </div>
         </aside>
 
@@ -345,14 +344,14 @@
               <div class="upload-illustration" aria-hidden="true">
                 <svg width="34" height="34" viewBox="0 0 36 36" fill="none"><path d="M10 4.8h10.5L27 11v18.2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z" fill="white" stroke="#94AE99" stroke-width="1.4"/><path d="M20 5v6h6.5M12.5 17h9m-9 4h9m-9 4h5" stroke="#668874" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5v-4a2 2 0 0 1 2-2h4" stroke="#245C45" stroke-width="1.5" stroke-linecap="round"/></svg>
               </div>
-              <h2>Start with a document.</h2>
-              <p>Choose a PDF or Excel workbook to preview, sign, and download a signed copy.</p>
+              <h2>Your document, signed.</h2>
+              <p>Add your signature and download your copy.</p>
               <button id="emptyUpload" class="primary-button upload-button" type="button">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Choose a document
               </button>
-              <div class="file-types">PDF, XLSX · Max 25 MB · Excel stays Excel</div>
-              <details class="import-details"><summary>About Excel files and shared sign-off</summary><p>Excel downloads stay editable, with the signature locked against normal moving or deletion. The simplified preview helps you position your signature; original formatting stays in the workbook. Save legacy .xls files as .xlsx first. Shared sign-off supports PDFs. Files are processed in your browser unless shared sign-off is requested.</p></details>
+              <div class="file-types">PDF or XLSX · Up to 25 MB</div>
+              <details class="import-details"><summary>Excel &amp; shared sign-off</summary><p>Excel downloads stay editable, with the signature locked against normal moving or deletion. The simplified preview helps you position your signature; original formatting stays in the workbook. Save legacy .xls files as .xlsx first. Shared sign-off supports PDFs. Files are processed in your browser unless shared sign-off is requested.</p></details>
             </div>
             <div id="stageContent" class="stage-content" hidden>
               <div id="pageWrap" class="page-wrap">
@@ -574,9 +573,7 @@
         const hasAccountEmail = Boolean(user?.email);
         const signerName = getSignerName(user);
         const hasSignerName = Boolean(signerName);
-        $("welcomeHeading").textContent = user && signerName
-          ? `Welcome, ${signerName}.`
-          : "Your signing desk.";
+        $("welcomeHeading").textContent = "Sign a document";
         if (userChanged) {
           clearSignatureDraft();
           activeSigningRequest = null;
@@ -1079,7 +1076,8 @@
           zoom = 1;
           resetPlacement();
           els.fileName.textContent = file.name;
-          els.fileSize.textContent = formatBytes(file.size) + (isExcel ? " · Excel workbook — preview used for cell placement" : "");
+          els.fileSize.textContent = formatBytes(file.size) + (isExcel ? " · Excel" : "");
+          els.fileCard.querySelector(".file-icon").textContent = isExcel ? "XLSX" : "PDF";
           els.fileCard.hidden = false;
           els.choosePdfLabel.textContent = "Change document";
           els.emptyState.hidden = true;
