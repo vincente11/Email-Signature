@@ -19,6 +19,7 @@
       const id = person.peer_id || person.user_id;
       const button = document.createElement("button");
       button.type = "button"; button.className = "person";
+      button.dataset.initials = (person.display_name || person.email || "User").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
       button.setAttribute("aria-current", String(peer?.id === id));
       const name = document.createElement("strong"); name.textContent = person.display_name || person.email;
       if (Number(person.unread_count)) {
