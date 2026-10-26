@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0d1411">
-  <title>EFFICIENT SIGN — PDF signing, made simple</title>
+  <meta name="theme-color" content="#0b101b">
+  <title>EFFICIENT SIGN — Your document workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
@@ -238,7 +238,7 @@
       .stage { min-height: 320px; }
     }
   </style>
-  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="theme.css?v=slate-blue-1">
 </head>
 <body>
   <div class="app-shell">
@@ -261,10 +261,11 @@
     <main>
       <section class="intro">
         <div>
-          <div class="eyebrow">A simpler way to sign</div>
+          <div class="eyebrow">Your document workspace</div>
           <h1 id="welcomeHeading">Welcome.</h1>
           <p>Add your signature to a PDF or Excel workbook in just a few steps.</p>
         </div>
+        <div class="intro-meta" aria-label="Supported document formats"><span class="format-pill">PDF</span><span class="format-pill">EXCEL</span></div>
       </section>
 
       <section id="signingWorkspace" class="workspace" aria-label="Document signing workspace">
@@ -342,13 +343,14 @@
               <div class="upload-illustration" aria-hidden="true">
                 <svg width="34" height="34" viewBox="0 0 36 36" fill="none"><path d="M10 4.8h10.5L27 11v18.2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z" fill="white" stroke="#94AE99" stroke-width="1.4"/><path d="M20 5v6h6.5M12.5 17h9m-9 4h9m-9 4h5" stroke="#668874" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5v-4a2 2 0 0 1 2-2h4" stroke="#245C45" stroke-width="1.5" stroke-linecap="round"/></svg>
               </div>
-              <h2>Your document goes here</h2>
-              <p>Upload a PDF or Excel workbook to get started. Excel files download as Excel with the signature embedded. Spreadsheet cells remain editable. The signature image is locked against moving, resizing, or deleting through normal Excel editing. The simplified preview shows worksheet values for cell placement; charts, images, and formatting remain in the downloaded workbook. Place your signature anywhere on the worksheet preview, including blank space below the table. Legacy .xls files must be saved as .xlsx first. Shared sign-off supports PDF only. Files are processed in your browser unless you request shared sign-off.</p>
+              <h2>Ready for your signature.</h2>
+              <p>Choose a PDF or Excel workbook to preview, sign, and download a signed copy.</p>
               <button id="emptyUpload" class="primary-button upload-button" type="button">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Choose a document
               </button>
               <div class="file-types">PDF, XLSX · Max 25 MB · Excel stays Excel</div>
+              <details class="import-details"><summary>About Excel files and shared sign-off</summary><p>Excel downloads stay editable, with the signature locked against normal moving or deletion. The simplified preview helps you position your signature; original formatting stays in the workbook. Save legacy .xls files as .xlsx first. Shared sign-off supports PDFs. Files are processed in your browser unless shared sign-off is requested.</p></details>
             </div>
             <div id="stageContent" class="stage-content" hidden>
               <div id="pageWrap" class="page-wrap">
