@@ -31,6 +31,10 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   if (!window.JSZip) throw new Error("Excel export tools are unavailable. Refresh and try again.");
   const meta = pages[placement.pageNumber - 1];
   const { col, row, colOff, rowOff, cx, cy } = window.excelSignatureAnchor(meta, placement);
+  // Absolute placement keeps the image fixed when users insert or resize rows/columns.
+  let absoluteX = colOff, absoluteY = rowOff;
+  for (let c = 0; c < col; c++) absoluteX += Math.round((meta.sheet["!cols"]?.[c]?.wpx || 64) * 9525);
+  for (let r = 0; r < row; r++) absoluteY += Math.round((meta.sheet["!rows"]?.[r]?.hpx || (meta.sheet["!rows"]?.[r]?.hpt || 15) * 4 / 3) * 9525);
   const zip = await window.JSZip.loadAsync(bytes);
   const ns = "http://schemas.openxmlformats.org/package/2006/relationships";
   const rns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -67,6 +71,62 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   const sheetRel = elements(workbookRels, "Relationship").find((el) => el.getAttribute("Id") === sheetId);
   const sheetPath = resolve("xl/workbook.xml", sheetRel.getAttribute("Target"));
   const sheet = await read(sheetPath);
+  // Unlock cells on this worksheet without changing styles on other sheets.
+  const styles = await read("xl/styles.xml");
+  const cellXfs = elements(styles, "cellXfs")[0];
+  const originalFormats = Array.from(cellXfs.childNodes).filter((el) => el.localName === "xf");
+  const unlockedFormats = new Map();
+  const unlockStyle = (index = "0") => {
+    index = String(index);
+    if (unlockedFormats.has(index)) return unlockedFormats.get(index);
+    const xf = (originalFormats[Number(index)] || originalFormats[0]).cloneNode(true);
+    let cellProtection = elements(xf, "protection")[0];
+    if (!cellProtection) {
+      cellProtection = styles.createElementNS(sns, "protection");
+      const extension = elements(xf, "extLst")[0];
+      xf.insertBefore(cellProtection, extension || null);
+    }
+    cellProtection.setAttribute("locked", "0");
+    xf.setAttribute("applyProtection", "1");
+    const result = String(Array.from(cellXfs.childNodes).filter((el) => el.localName === "xf").length);
+    cellXfs.appendChild(xf); unlockedFormats.set(index, result);
+    return result;
+  };
+  let columns = elements(sheet, "cols")[0];
+  if (!columns) {
+    columns = sheet.createElementNS(sns, "cols");
+    sheet.documentElement.insertBefore(columns, elements(sheet, "sheetData")[0]);
+  }
+  const originalColumns = elements(columns, "col").map((el) => ({ min: Number(el.getAttribute("min")), max: Number(el.getAttribute("max")), style: el.getAttribute("style") || "0", el }));
+  for (const rowElement of elements(sheet, "row")) {
+    const rowStyle = rowElement.getAttribute("s");
+    for (const cell of elements(rowElement, "c")) {
+      const letters = (cell.getAttribute("r") || "A1").match(/^[A-Z]+/)[0];
+      let column = 0;
+      for (const letter of letters) column = column * 26 + letter.charCodeAt(0) - 64;
+      const inherited = originalColumns.find((entry) => column >= entry.min && column <= entry.max)?.style || "0";
+      cell.setAttribute("s", unlockStyle(cell.getAttribute("s") || rowStyle || inherited));
+    }
+    if (rowStyle) rowElement.setAttribute("s", unlockStyle(rowStyle));
+  }
+  // Default column styles also unlock previously empty cells and new rows.
+  let nextColumn = 1;
+  for (const entry of originalColumns.sort((a, b) => a.min - b.min)) {
+    if (nextColumn < entry.min) {
+      const gap = sheet.createElementNS(sns, "col");
+      gap.setAttribute("min", String(nextColumn)); gap.setAttribute("max", String(entry.min - 1)); gap.setAttribute("style", unlockStyle());
+      columns.insertBefore(gap, entry.el);
+    }
+    entry.el.setAttribute("style", unlockStyle(entry.style));
+    nextColumn = Math.max(nextColumn, entry.max + 1);
+  }
+  if (nextColumn <= 16384) {
+    const remaining = sheet.createElementNS(sns, "col");
+    remaining.setAttribute("min", String(nextColumn)); remaining.setAttribute("max", "16384"); remaining.setAttribute("style", unlockStyle());
+    columns.appendChild(remaining);
+  }
+  cellXfs.setAttribute("count", String(Array.from(cellXfs.childNodes).filter((el) => el.localName === "xf").length));
+  write("xl/styles.xml", styles);
   // Use a fresh, undisclosed password for each signed download. Store only its verifier.
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const password = crypto.randomUUID() + crypto.randomUUID();
@@ -94,7 +154,7 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
     sheet.documentElement.insertBefore(protection, (calculation || afterData).nextSibling);
   }
   protection.removeAttribute("password");
-  for (const [key, value] of Object.entries({ sheet: "1", objects: "1", scenarios: "1", algorithmName: "SHA-512", saltValue: base64(salt), hashValue: base64(hash), spinCount: String(spinCount) })) protection.setAttribute(key, value);
+  for (const [key, value] of Object.entries({ sheet: "1", objects: "1", scenarios: "1", formatCells: "0", formatColumns: "0", formatRows: "0", insertColumns: "0", insertRows: "0", insertHyperlinks: "0", deleteColumns: "0", deleteRows: "0", sort: "0", autoFilter: "0", selectLockedCells: "0", selectUnlockedCells: "0", algorithmName: "SHA-512", saltValue: base64(salt), hashValue: base64(hash), spinCount: String(spinCount) })) protection.setAttribute(key, value);
   let workbookProtection = elements(workbook, "workbookProtection")[0];
   if (!workbookProtection) {
     workbookProtection = workbook.createElementNS(sns, "workbookProtection");
@@ -130,7 +190,7 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   zip.file(imagePath, signature.split(",")[1], { base64: true });
   const imageId = addRel(drawingRels, "image", "/" + imagePath);
   const pictureId = Math.max(0, ...elements(drawingDoc, "cNvPr").map((el) => Number(el.getAttribute("id")) || 0)) + 1;
-  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1" noMove="1" noResize="1" noRot="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData fLocksWithSheet="1"/></xdr:oneCellAnchor>`);
+  const anchor = parse(`<xdr:absoluteAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:pos x="${absoluteX}" y="${absoluteY}"/><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1" noMove="1" noResize="1" noRot="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData fLocksWithSheet="1"/></xdr:absoluteAnchor>`);
   drawingDoc.documentElement.appendChild(drawingDoc.importNode(anchor.documentElement, true));
   write(drawingPath, drawingDoc); write(drawingRelsPath, drawingRels);
   const types = await read("[Content_Types].xml");
