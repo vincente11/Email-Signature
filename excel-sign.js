@@ -1,19 +1,36 @@
-/* Modify only drawing-related ZIP parts; retain original workbook data and formatting. */
-window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
-  if (!window.JSZip) throw new Error("Excel export tools are unavailable. Refresh and try again.");
-  const meta = pages[placement.pageNumber - 1];
+/* Map the full preview page, including blank space, to worksheet coordinates. */
+window.excelSignatureAnchor = function (meta, placement) {
+  if (!meta?.rows?.length) throw new Error("Reopen this workbook before signing.");
   const x = placement.leftRatio * 841.89, y = placement.topRatio * 595.28;
-  const previewRow = meta.rows.find((row) => y >= row.top && y < row.top + row.height);
-  if (!previewRow || x < 30 || x >= 811.89) throw new Error("Place the signature inside a worksheet cell in the preview.");
-  const col = meta.col + Math.floor((x - 30) / meta.width);
+  let previewRow = meta.rows.find((row) => y >= row.top && y < row.top + row.height);
+  if (!previewRow) {
+    const first = meta.rows[0], last = meta.rows[meta.rows.length - 1];
+    if (y < first.top) previewRow = first;
+    else {
+      // Blank space below the table represents the following empty Excel rows.
+      const end = last.top + last.height;
+      const extra = Math.max(0, Math.floor((y - end) / 18));
+      previewRow = { row: Math.min(1048575, last.row + 1 + extra), top: end + extra * 18, height: 18, offset: 0, lineCount: 1 };
+    }
+  }
+  const localX = Math.min(781.89 - .001, Math.max(0, x - 30));
+  const col = Math.min(meta.endCol, meta.col + Math.floor(localX / meta.width));
   const colPixels = meta.sheet["!cols"]?.[col]?.wpx || 64;
   const rowPixels = meta.sheet["!rows"]?.[previewRow.row]?.hpx || (meta.sheet["!rows"]?.[previewRow.row]?.hpt || 15) * 4 / 3;
   const emu = (px) => Math.max(0, Math.round(px * 9525));
-  const colOff = emu(((x - 30) % meta.width) / meta.width * colPixels);
+  const colOff = emu((localX % meta.width) / meta.width * colPixels);
   const rowFraction = Math.min(.999, Math.max(0, (previewRow.offset + (y - previewRow.top) / 10) / previewRow.lineCount));
   const rowOff = emu(rowFraction * rowPixels);
   const cx = emu(placement.widthRatio * 841.89 / meta.width * colPixels);
   const cy = Math.max(1, Math.round(cx * placement.heightRatio * 595.28 / (placement.widthRatio * 841.89)));
+  return { col, row: previewRow.row, colOff, rowOff, cx, cy };
+};
+
+/* Modify only drawing-related ZIP parts; retain original workbook data and formatting. */
+window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
+  if (!window.JSZip) throw new Error("Excel export tools are unavailable. Refresh and try again.");
+  const meta = pages[placement.pageNumber - 1];
+  const { col, row, colOff, rowOff, cx, cy } = window.excelSignatureAnchor(meta, placement);
   const zip = await window.JSZip.loadAsync(bytes);
   const ns = "http://schemas.openxmlformats.org/package/2006/relationships";
   const rns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -75,7 +92,7 @@ window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
   zip.file(imagePath, signature.split(",")[1], { base64: true });
   const imageId = addRel(drawingRels, "image", "/" + imagePath);
   const pictureId = Math.max(0, ...elements(drawingDoc, "cNvPr").map((el) => Number(el.getAttribute("id")) || 0)) + 1;
-  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${previewRow.row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`);
+  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`);
   drawingDoc.documentElement.appendChild(drawingDoc.importNode(anchor.documentElement, true));
   write(drawingPath, drawingDoc); write(drawingRelsPath, drawingRels);
   const types = await read("[Content_Types].xml");
