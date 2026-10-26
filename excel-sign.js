@@ -1,0 +1,91 @@
+/* Modify only drawing-related ZIP parts; retain original workbook data and formatting. */
+window.signExcelWorkbook = async function (bytes, pages, placement, signature) {
+  if (!window.JSZip) throw new Error("Excel export tools are unavailable. Refresh and try again.");
+  const meta = pages[placement.pageNumber - 1];
+  const x = placement.leftRatio * 841.89, y = placement.topRatio * 595.28;
+  const previewRow = meta.rows.find((row) => y >= row.top && y < row.top + row.height);
+  if (!previewRow || x < 30 || x >= 811.89) throw new Error("Place the signature inside a worksheet cell in the preview.");
+  const col = meta.col + Math.floor((x - 30) / meta.width);
+  const colPixels = meta.sheet["!cols"]?.[col]?.wpx || 64;
+  const rowPixels = meta.sheet["!rows"]?.[previewRow.row]?.hpx || (meta.sheet["!rows"]?.[previewRow.row]?.hpt || 15) * 4 / 3;
+  const emu = (px) => Math.max(0, Math.round(px * 9525));
+  const colOff = emu(((x - 30) % meta.width) / meta.width * colPixels);
+  const rowFraction = Math.min(.999, Math.max(0, (previewRow.offset + (y - previewRow.top) / 10) / previewRow.lineCount));
+  const rowOff = emu(rowFraction * rowPixels);
+  const cx = emu(placement.widthRatio * 841.89 / meta.width * colPixels);
+  const cy = Math.max(1, Math.round(cx * placement.heightRatio * 595.28 / (placement.widthRatio * 841.89)));
+  const zip = await window.JSZip.loadAsync(bytes);
+  const ns = "http://schemas.openxmlformats.org/package/2006/relationships";
+  const rns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const sns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const xns = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing";
+  const parser = new DOMParser(), serializer = new XMLSerializer();
+  const parse = (source) => {
+    const doc = parser.parseFromString(source, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) throw new Error("The workbook contains invalid XML.");
+    return doc;
+  };
+  const read = async (path, fallback) => parse(zip.file(path) ? await zip.file(path).async("string") : fallback);
+  const write = (path, doc) => zip.file(path, serializer.serializeToString(doc));
+  const elements = (doc, local) => Array.from(doc.getElementsByTagNameNS("*", local));
+  const resolve = (base, target) => {
+    const parts = (target.startsWith("/") ? target.slice(1) : base.slice(0, base.lastIndexOf("/") + 1) + target).split("/");
+    const result = [];
+    for (const part of parts) { if (part === "..") result.pop(); else if (part && part !== ".") result.push(part); }
+    return result.join("/");
+  };
+  const relPath = (path) => path.slice(0, path.lastIndexOf("/") + 1) + "_rels/" + path.slice(path.lastIndexOf("/") + 1) + ".rels";
+  const blankRels = `<Relationships xmlns="${ns}"/>`;
+  const addRel = (doc, type, target) => {
+    let n = 1;
+    while (elements(doc, "Relationship").some((el) => el.getAttribute("Id") === `rId${n}`)) n++;
+    const el = doc.createElementNS(ns, "Relationship");
+    el.setAttribute("Id", `rId${n}`); el.setAttribute("Type", rns + "/" + type); el.setAttribute("Target", target);
+    doc.documentElement.appendChild(el);
+    return `rId${n}`;
+  };
+  const workbook = await read("xl/workbook.xml");
+  const sheetId = elements(workbook, "sheet")[meta.sheetIndex].getAttributeNS(rns, "id");
+  const workbookRels = await read("xl/_rels/workbook.xml.rels");
+  const sheetRel = elements(workbookRels, "Relationship").find((el) => el.getAttribute("Id") === sheetId);
+  const sheetPath = resolve("xl/workbook.xml", sheetRel.getAttribute("Target"));
+  const sheet = await read(sheetPath);
+  const sheetRelsPath = relPath(sheetPath);
+  const sheetRels = await read(sheetRelsPath, blankRels);
+  let drawing = elements(sheet, "drawing")[0];
+  let drawingPath;
+  const token = crypto.randomUUID().replace(/-/g, "");
+  if (drawing) {
+    const id = drawing.getAttributeNS(rns, "id");
+    const rel = elements(sheetRels, "Relationship").find((el) => el.getAttribute("Id") === id);
+    drawingPath = resolve(sheetPath, rel.getAttribute("Target"));
+  } else {
+    drawingPath = `xl/drawings/signature-${token}.xml`;
+    const id = addRel(sheetRels, "drawing", "/" + drawingPath);
+    drawing = sheet.createElementNS(sns, "drawing");
+    drawing.setAttributeNS(rns, "r:id", id);
+    const following = Array.from(sheet.documentElement.childNodes).find((el) => ["legacyDrawing", "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"].includes(el.localName));
+    sheet.documentElement.insertBefore(drawing, following || null);
+    write(sheetPath, sheet); write(sheetRelsPath, sheetRels);
+  }
+  const drawingDoc = await read(drawingPath, `<xdr:wsDr xmlns:xdr="${xns}"/>`);
+  const drawingRelsPath = relPath(drawingPath);
+  const drawingRels = await read(drawingRelsPath, blankRels);
+  const imagePath = `xl/media/signature-${token}.png`;
+  zip.file(imagePath, signature.split(",")[1], { base64: true });
+  const imageId = addRel(drawingRels, "image", "/" + imagePath);
+  const pictureId = Math.max(0, ...elements(drawingDoc, "cNvPr").map((el) => Number(el.getAttribute("id")) || 0)) + 1;
+  const anchor = parse(`<xdr:oneCellAnchor xmlns:xdr="${xns}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${rns}"><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>${colOff}</xdr:colOff><xdr:row>${previewRow.row}</xdr:row><xdr:rowOff>${rowOff}</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${pictureId}" name="Signature ${pictureId}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${imageId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`);
+  drawingDoc.documentElement.appendChild(drawingDoc.importNode(anchor.documentElement, true));
+  write(drawingPath, drawingDoc); write(drawingRelsPath, drawingRels);
+  const types = await read("[Content_Types].xml");
+  const tns = types.documentElement.namespaceURI;
+  if (!elements(types, "Default").some((el) => el.getAttribute("Extension").toLowerCase() === "png")) {
+    const el = types.createElementNS(tns, "Default"); el.setAttribute("Extension", "png"); el.setAttribute("ContentType", "image/png"); types.documentElement.appendChild(el);
+  }
+  if (!elements(types, "Override").some((el) => el.getAttribute("PartName") === "/" + drawingPath)) {
+    const el = types.createElementNS(tns, "Override"); el.setAttribute("PartName", "/" + drawingPath); el.setAttribute("ContentType", "application/vnd.openxmlformats-officedocument.drawing+xml"); types.documentElement.appendChild(el);
+  }
+  write("[Content_Types].xml", types);
+  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+};

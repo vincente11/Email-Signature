@@ -4,6 +4,7 @@ window.excelToPdf = async function excelToPdf(bytes) {
   const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
   const workbook = window.XLSX.read(bytes, { type: "array", cellStyles: true });
   const pdf = await PDFDocument.create();
+  const previewPages = [];
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const text = (value) => Array.from(String(value)).map((char) => {
@@ -56,6 +57,7 @@ window.excelToPdf = async function excelToPdf(bytes) {
         footer();
         if (pdf.getPageCount() >= 250) throw new Error("This workbook exceeds 250 preview pages. Export it to PDF from Excel first.");
         page = pdf.addPage([841.89, 595.28]);
+        previewPages.push({ sheetIndex, col, endCol, width, rows: [], sheet });
         page.drawText(text(name).slice(0, 90), { x: 30, y: 563, size: 14, font: bold });
         top = 544;
         firstRow = lastRow = row;
@@ -75,6 +77,7 @@ window.excelToPdf = async function excelToPdf(bytes) {
           if (capacity < 1) { newPage(r); continue; }
           const count = Math.min(capacity, lineCount - offset);
           const height = Math.max(17, count * 10 + 8);
+          previewPages[previewPages.length - 1].rows.push({ row: r, top: 595.28 - top, height, offset, lineCount });
           cells.forEach((lines, index) => {
             const x = 30 + index * width;
             page.drawRectangle({ x, y: top - height, width, height, borderWidth: 0.4, borderColor: rgb(.8, .83, .8) });
@@ -92,5 +95,5 @@ window.excelToPdf = async function excelToPdf(bytes) {
     }
   }
   if (!pdf.getPageCount()) throw new Error("This workbook has no visible worksheet data.");
-  return pdf.save();
+  return { bytes: await pdf.save(), pages: previewPages };
 };

@@ -12,7 +12,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="excel-import.js"></script>
+  <script src="excel-import.js?v=excel-native-1"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="excel-sign.js?v=excel-native-1"></script>
   <style>
     :root {
       color-scheme: light;
@@ -340,12 +342,12 @@
                 <svg width="34" height="34" viewBox="0 0 36 36" fill="none"><path d="M10 4.8h10.5L27 11v18.2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z" fill="white" stroke="#94AE99" stroke-width="1.4"/><path d="M20 5v6h6.5M12.5 17h9m-9 4h9m-9 4h5" stroke="#668874" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5v-4a2 2 0 0 1 2-2h4" stroke="#245C45" stroke-width="1.5" stroke-linecap="round"/></svg>
               </div>
               <h2>Your document goes here</h2>
-              <p>Upload a PDF or Excel workbook to get started. Excel worksheet values are converted into PDF pages for signing. Review every page before signing; charts, images, and original formatting are not preserved. Formulas use saved results. Files are processed in your browser unless you request shared sign-off.</p>
+              <p>Upload a PDF or Excel workbook to get started. Excel files download as Excel with the signature embedded in the original workbook. The simplified preview shows worksheet values for cell placement; charts, images, and formatting remain in the downloaded workbook. Place your signature inside a worksheet cell. Legacy .xls files must be saved as .xlsx first. Shared sign-off supports PDF only. Files are processed in your browser unless you request shared sign-off.</p>
               <button id="emptyUpload" class="primary-button upload-button" type="button">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Choose a document
               </button>
-              <div class="file-types">PDF, XLSX, XLS · Max 25 MB · Signed output: PDF</div>
+              <div class="file-types">PDF, XLSX · Max 25 MB · Excel stays Excel</div>
             </div>
             <div id="stageContent" class="stage-content" hidden>
               <div id="pageWrap" class="page-wrap">
@@ -454,6 +456,8 @@
 
       let pdfDocument = null;
       let originalPdfBytes = null;
+      let originalExcelBytes = null;
+      let excelPreviewPages = null;
       let sourceFileName = "";
       let currentPageNumber = 1;
       let zoom = 1;
@@ -571,7 +575,7 @@
         if (userChanged) {
           clearSignatureDraft();
           activeSigningRequest = null;
-          els.downloadButton.textContent = "Download signed PDF";
+          els.downloadButton.textContent = originalExcelBytes ? "Download signed Excel" : "Download signed PDF";
           initializeRequestNotifications(user?.id || null);
         }
 
@@ -579,7 +583,7 @@
         els.profileLink.hidden = !user || hasSignerName;
         els.authSignOut.hidden = !user;
         els.collaborationNavLink.hidden = !user;
-        els.openRequestDialog.disabled = !user || !pdfDocument || Boolean(activeSigningRequest);
+        els.openRequestDialog.disabled = !user || !pdfDocument || Boolean(activeSigningRequest) || Boolean(originalExcelBytes);
 
         if (!user) {
           els.authMessage.textContent = authClient
@@ -822,6 +826,7 @@
       }
 
       function openRequestComposer() {
+        if (originalExcelBytes) { showToast("Shared sign-off currently supports PDF documents only. Download your signed Excel workbook instead."); return; }
         if (!authUser || !pdfDocument || !originalPdfBytes) {
           showToast("Choose a document and sign in before requesting sign-off.");
           return;
@@ -847,7 +852,7 @@
       }
 
       async function submitSigningRequest() {
-        if (!authClient || !authUser || !originalPdfBytes || !selectedSigners.length) return;
+        if (originalExcelBytes || !authClient || !authUser || !originalPdfBytes || !selectedSigners.length) return;
         const requestId = createRequestId();
         const storagePath = `${requestId}/document.pdf`;
         let requestCreated = false;
@@ -987,6 +992,8 @@
         renderGeneration += 1;
         pdfDocument = null;
         originalPdfBytes = null;
+        originalExcelBytes = null;
+        excelPreviewPages = null;
         sourceFileName = "";
         activeSigningRequest = null;
         currentPageNumber = 1;
@@ -1042,7 +1049,13 @@
         setLoading(true, "Reading your document…");
         try {
           let bytes = new Uint8Array(await file.arrayBuffer());
-          if (isExcel) bytes = await window.excelToPdf(bytes);
+          const workbookBytes = isExcel ? bytes.slice() : null;
+          let preview = null;
+          if (isExcel) {
+            if (/\.xls$/i.test(file.name)) throw new Error("Save this legacy .xls workbook as .xlsx in Excel, then upload it to keep its formatting and download a signed Excel file.");
+            preview = await window.excelToPdf(bytes);
+            bytes = preview.bytes;
+          }
           const pdfTask = window.pdfjsLib.getDocument({ data: bytes.slice() });
           const loadedDocument = await pdfTask.promise;
           if (loadedDocument.numPages < 1) {
@@ -1053,18 +1066,22 @@
           documentReplaced = true;
           pdfDocument = loadedDocument;
           originalPdfBytes = bytes;
-          sourceFileName = isExcel ? file.name.replace(/\.(xlsx|xls)$/i, ".pdf") : file.name;
+          originalExcelBytes = workbookBytes;
+          excelPreviewPages = preview?.pages || null;
+          els.downloadButton.textContent = isExcel ? "Download signed Excel" : "Download signed PDF";
+          sourceFileName = file.name;
           currentPageNumber = 1;
           zoom = 1;
           resetPlacement();
           els.fileName.textContent = file.name;
-          els.fileSize.textContent = formatBytes(file.size) + (isExcel ? " · Converted to PDF — review all pages" : "");
+          els.fileSize.textContent = formatBytes(file.size) + (isExcel ? " · Excel workbook — preview used for cell placement" : "");
           els.fileCard.hidden = false;
           els.choosePdfLabel.textContent = "Change document";
           els.emptyState.hidden = true;
           els.stageContent.hidden = false;
           els.documentArea.classList.add("has-document");
-          els.openRequestDialog.disabled = !authUser;
+          els.openRequestDialog.disabled = !authUser || isExcel;
+          els.openRequestDialog.title = isExcel ? "Shared sign-off currently supports PDF documents only" : "";
           els.statusText.textContent = "Ready to sign";
           els.statusDot.classList.add("ready");
           els.currentPage.textContent = "1";
@@ -1416,8 +1433,18 @@
         }
         const isSharedSigning = Boolean(activeSigningRequest);
         els.downloadButton.disabled = true;
-        setLoading(true, "Preparing your signed PDF…");
+        setLoading(true, originalExcelBytes ? "Preparing your signed Excel workbook…" : "Preparing your signed PDF…");
         try {
+          if (originalExcelBytes) {
+            const signed = await window.signExcelWorkbook(originalExcelBytes, excelPreviewPages, stampPlacement, signatureDataUrl);
+            const url = URL.createObjectURL(new Blob([signed], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+            const link = document.createElement("a");
+            link.href = url; link.download = sourceFileName.replace(/\.xlsx$/i, "") + "-signed.xlsx";
+            document.body.appendChild(link); link.click(); link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showToast("Your signed Excel workbook has been downloaded.");
+            return;
+          }
           const { PDFDocument } = window.PDFLib;
           const pdf = await PDFDocument.load(originalPdfBytes.slice());
           const pngBytes = await fetch(signatureDataUrl).then((response) => {
@@ -1491,7 +1518,7 @@
           if (isSharedSigning) {
             showCollaborationError(error, "Your signature could not be submitted.");
           } else {
-            showToast("The signed PDF could not be created. Please try again with another PDF.");
+            showToast(originalExcelBytes ? (error.message || "The signed Excel workbook could not be created.") : "The signed PDF could not be created. Please try again with another PDF.");
             console.error("PDF export failed:", error);
           }
         } finally {
