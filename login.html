@@ -190,6 +190,7 @@
       let isSignUpMode = false;
       let isProfileCompletionMode = false;
       let authClient = null;
+      const returnPage = new URLSearchParams(window.location.search).get("next") === "chat.html" ? "chat.html" : "index.html";
 
       function setMessage(text) {
         message.textContent = text;
@@ -297,7 +298,7 @@
               }
             });
             if (error) throw error;
-            window.location.replace("index.html");
+            window.location.replace(returnPage);
             return;
           }
 
@@ -320,7 +321,7 @@
           passwordInput.value = "";
           if (isSignUpMode) {
             if (result.data.session) {
-              window.location.replace("index.html");
+              window.location.replace(returnPage);
             } else {
               setMessage("Supabase did not start an account session. To disable confirmation emails, turn off Confirm email under Authentication → Sign In / Providers → Email. If you already have an account, switch to sign in.");
             }
@@ -331,7 +332,7 @@
             setMessage("Add your first name and surname to your account. They will appear automatically in your signature.");
             return;
           }
-          window.location.replace("index.html");
+          window.location.replace(returnPage);
         } catch (error) {
           console.error("Supabase authentication failed:", error);
           setMessage(error.message || "Authentication failed. Please try again.");
@@ -377,7 +378,7 @@
             return;
           }
           if (hasAccountName(currentUser)) {
-            window.location.replace("index.html");
+            window.location.replace(returnPage);
             return;
           }
           setProfileCompletion(currentUser);
@@ -385,7 +386,7 @@
         }
         if (currentUser) {
           if (hasAccountName(currentUser)) {
-            window.location.replace("index.html");
+            window.location.replace(returnPage);
           } else {
             setProfileCompletion(currentUser);
             setMessage("Add your first name and surname to your account. They will appear automatically in your signature.");

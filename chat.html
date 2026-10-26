@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1411">
+  <title>Chat — EFFICIENT SIGN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="chat.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="chat.js?v=1"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html"><img class="brand-logo" src="efficient-engineering-mark.png" alt=""><span class="brand-name">EFFICIENT SIGN</span></a>
+    <nav class="main-nav" aria-label="Main navigation"><a href="index.html">Sign a document</a><a href="collaboration.html">Collaboration requests</a><a href="chat.html" aria-current="page">Chat</a></nav>
+  </header>
+  <main>
+    <div class="chat-intro"><div><div class="eyebrow">Stay connected</div><h1>Chat</h1><p>Private conversations with other registered users.</p></div><div class="account"><span id="accountName"></span><a id="signIn" href="login.html?next=chat.html" hidden>Sign in</a><button id="signOut" type="button" hidden>Sign out</button></div></div>
+    <p id="chatStatus" class="chat-status" role="status">Checking your account…</p>
+    <div class="chat-layout" id="chatLayout" hidden>
+      <aside class="chat-sidebar" aria-label="Find users and conversations">
+        <label for="userSearch">Start a conversation</label><input id="userSearch" type="search" placeholder="Search name or email" autocomplete="off" maxlength="100">
+        <p id="searchStatus" class="hint" role="status">Type at least two characters.</p>
+        <div id="searchResults" class="people-list" aria-label="User search results"></div>
+        <h2>Messages <span id="unreadTotal" class="count" hidden></span></h2>
+        <div id="conversations" class="people-list"><p class="hint">No conversations yet. Find a user above to say hello.</p></div>
+      </aside>
+      <section class="chat-panel" aria-label="Conversation">
+        <div id="noConversation" class="chat-empty"><span class="chat-symbol" aria-hidden="true">↗</span><h2>A conversation starts here</h2><p>Choose a conversation or search for someone to message.</p></div>
+        <div id="conversationPanel" class="conversation-panel" hidden>
+          <header class="conversation-header"><div><h2 id="peerName"></h2><p id="peerEmail"></p></div><span class="hint">Private conversation</span></header>
+          <div id="messageScroll" class="message-scroll" tabindex="0" aria-label="Message history"><button id="loadOlder" class="older" type="button" hidden>Load older messages</button><ol id="messages" class="messages" aria-label="Messages"></ol><p id="emptyMessages" class="chat-empty-note" hidden>No messages yet. Send the first message below.</p></div>
+          <p id="conversationStatus" class="hint conversation-status" role="status"></p>
+          <form id="messageForm" class="composer"><label for="messageBody" class="visually-hidden">Your message</label><textarea id="messageBody" placeholder="Write a message…" rows="3" maxlength="2000" required></textarea><div class="composer-actions"><span class="hint"><span id="messageCount">0</span>/2000 · Ctrl+Enter to send</span><button id="sendMessage" type="submit">Send message</button></div></form>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer">Developed by Vincent Mlauzi</footer>
+</body>
+</html>

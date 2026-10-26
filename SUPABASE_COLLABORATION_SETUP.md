@@ -20,7 +20,13 @@ The migration creates a private `signing-documents` Storage bucket, account dire
 
 Requests are managed on the dedicated [`collaboration.html`](./collaboration.html) page. The navigation badge shows new requests and changes to signing progress; the page refreshes automatically while open. Signers act in the order selected by the requester; only the active signer can open and update the private PDF. Requests support up to 10 signers.
 
-## Chrome push notifications
+## Private user chat
+
+Run `supabase/migrations/20261026000100_direct_user_chat.sql` after the account/profile migration, then deploy `chat.html`, `chat.css`, `chat.js` and the navigation/login updates. The Chat page uses the existing sign-in session and account directory. Conversations refresh every five seconds while visible, retain drafts after failed sends, and support loading older messages. Only the sender and recipient can read messages. Message bodies are limited to 2,000 characters, and retries use a client-generated ID to avoid duplicates. Users cannot directly insert, edit or delete message rows; authenticated RPCs validate the sender and recipient. This is private access control, not end-to-end encryption. Chat does not send email or browser push notifications.
+
+Run `supabase/tests/direct_user_chat.sql` to verify access restrictions, two-way replies, idempotency, pagination and unread state. Its temporary users and messages are rolled back.
+
+## Chrome push notifications setup
 
 Push delivery requires a service worker, a VAPID key pair, a Supabase Edge Function, and a database trigger. Complete these one-time setup steps before users enable alerts:
 
