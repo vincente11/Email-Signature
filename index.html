@@ -11,6 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="excel-import.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -244,7 +246,7 @@
         <span class="brand-name">EFFICIENT SIGN</span>
       </div>
       <nav class="main-nav" aria-label="Main navigation">
-        <a href="#signingWorkspace" aria-current="page">Sign a PDF</a>
+        <a href="#signingWorkspace" aria-current="page">Sign a document</a>
         <a id="collaborationNavLink" href="collaboration.html" aria-label="Collaboration requests" hidden>
           Collaboration requests<span id="requestNotificationBadge" class="nav-notification-badge" aria-hidden="true" hidden></span>
         </a>
@@ -258,11 +260,11 @@
         <div>
           <div class="eyebrow">A simpler way to sign</div>
           <h1 id="welcomeHeading">Welcome.</h1>
-          <p>Add your signature to a PDF in just a few steps.</p>
+          <p>Add your signature to a PDF or Excel workbook in just a few steps.</p>
         </div>
       </section>
 
-      <section id="signingWorkspace" class="workspace" aria-label="PDF signing workspace">
+      <section id="signingWorkspace" class="workspace" aria-label="Document signing workspace">
         <aside class="sidebar">
           <section class="auth-card" aria-labelledby="authHeading">
             <h2 id="authHeading" class="auth-heading">Your signer account</h2>
@@ -280,15 +282,15 @@
               <div id="fileName" class="file-name"></div>
               <div id="fileSize" class="file-size"></div>
             </div>
-            <button id="removeFile" class="icon-button" type="button" aria-label="Remove PDF" title="Remove PDF">
+            <button id="removeFile" class="icon-button" type="button" aria-label="Remove document" title="Remove document">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 4.5h9m-8 0 .5 8h5l.5-8M6.5 4.5V3h3v1.5M6.5 6.5v4m3-4v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
           <button id="choosePdf" class="primary-button upload-button" type="button">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span id="choosePdfLabel">Choose PDF</span>
+            <span id="choosePdfLabel">Choose document</span>
           </button>
-          <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden>
+          <input id="pdfInput" type="file" accept="application/pdf,.pdf,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
 
           <div style="height: 22px"></div>
           <div class="divider"></div>
@@ -338,12 +340,12 @@
                 <svg width="34" height="34" viewBox="0 0 36 36" fill="none"><path d="M10 4.8h10.5L27 11v18.2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z" fill="white" stroke="#94AE99" stroke-width="1.4"/><path d="M20 5v6h6.5M12.5 17h9m-9 4h9m-9 4h5" stroke="#668874" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5v-4a2 2 0 0 1 2-2h4" stroke="#245C45" stroke-width="1.5" stroke-linecap="round"/></svg>
               </div>
               <h2>Your document goes here</h2>
-              <p>Upload a PDF to get started. Your file is processed in your browser and is never sent to a server.</p>
+              <p>Upload a PDF or Excel workbook to get started. Excel worksheet values are converted into PDF pages for signing. Review every page before signing; charts, images, and original formatting are not preserved. Formulas use saved results. Files are processed in your browser unless you request shared sign-off.</p>
               <button id="emptyUpload" class="primary-button upload-button" type="button">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Choose a PDF
+                Choose a document
               </button>
-              <div class="file-types">PDF files only · Max 25 MB</div>
+              <div class="file-types">PDF, XLSX, XLS · Max 25 MB · Signed output: PDF</div>
             </div>
             <div id="stageContent" class="stage-content" hidden>
               <div id="pageWrap" class="page-wrap">
@@ -821,7 +823,7 @@
 
       function openRequestComposer() {
         if (!authUser || !pdfDocument || !originalPdfBytes) {
-          showToast("Choose a PDF and sign in before requesting sign-off.");
+          showToast("Choose a document and sign in before requesting sign-off.");
           return;
         }
         selectedSigners = [];
@@ -992,7 +994,7 @@
         resetPlacement();
         els.pdfInput.value = "";
         els.fileCard.hidden = true;
-        els.choosePdfLabel.textContent = "Choose PDF";
+        els.choosePdfLabel.textContent = "Choose document";
         els.documentArea.classList.remove("has-document");
         els.emptyState.hidden = false;
         els.stageContent.hidden = true;
@@ -1021,12 +1023,13 @@
         if (!file) return;
         const maximumFileBytes = isSharedRequest ? MAX_SHARED_FILE_BYTES : MAX_FILE_BYTES;
         if (file.size > maximumFileBytes) {
-          showToast(`This PDF exceeds the ${isSharedRequest ? "50 MB shared-document" : "25 MB"} limit.`);
+          showToast(`This document exceeds the ${isSharedRequest ? "50 MB shared-document" : "25 MB"} limit.`);
           els.pdfInput.value = "";
           return;
         }
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-          showToast("Please choose a PDF document.");
+        const isExcel = !isSharedRequest && /\.(xlsx|xls)$/i.test(file.name);
+        if (!isExcel && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          showToast("Please choose a PDF or Excel workbook (.xlsx or .xls).");
           els.pdfInput.value = "";
           return;
         }
@@ -1038,7 +1041,8 @@
         let documentReplaced = false;
         setLoading(true, "Reading your document…");
         try {
-          const bytes = new Uint8Array(await file.arrayBuffer());
+          let bytes = new Uint8Array(await file.arrayBuffer());
+          if (isExcel) bytes = await window.excelToPdf(bytes);
           const pdfTask = window.pdfjsLib.getDocument({ data: bytes.slice() });
           const loadedDocument = await pdfTask.promise;
           if (loadedDocument.numPages < 1) {
@@ -1049,14 +1053,14 @@
           documentReplaced = true;
           pdfDocument = loadedDocument;
           originalPdfBytes = bytes;
-          sourceFileName = file.name;
+          sourceFileName = isExcel ? file.name.replace(/\.(xlsx|xls)$/i, ".pdf") : file.name;
           currentPageNumber = 1;
           zoom = 1;
           resetPlacement();
           els.fileName.textContent = file.name;
-          els.fileSize.textContent = formatBytes(file.size);
+          els.fileSize.textContent = formatBytes(file.size) + (isExcel ? " · Converted to PDF — review all pages" : "");
           els.fileCard.hidden = false;
-          els.choosePdfLabel.textContent = "Change PDF";
+          els.choosePdfLabel.textContent = "Change document";
           els.emptyState.hidden = true;
           els.stageContent.hidden = false;
           els.documentArea.classList.add("has-document");
@@ -1075,6 +1079,7 @@
           if (documentReplaced) resetDocument();
           showToast(error && error.name === "PasswordException"
             ? "This PDF is password-protected. Please use an unlocked PDF."
+            : isExcel ? (error.message || "We couldn't open this Excel workbook. Use a valid, unprotected workbook.")
             : "We couldn't open this PDF. Check that it is a valid, unprotected PDF.");
           console.error("PDF loading failed:", error);
         } finally {
