@@ -16,7 +16,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="excel-sign.js?v=excel-native-4"></script>
   <script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
-  <script src="pdf-fill.js?v=1"></script>
+  <script src="pdf-fill.js?v=2"></script>
   <style>
     :root {
       color-scheme: light;
@@ -242,7 +242,7 @@
   </style>
   <link rel="stylesheet" href="theme.css?v=slate-blue-1">
   <link rel="stylesheet" href="studio.css?v=2">
-  <link rel="stylesheet" href="pdf-fill.css?v=1">
+  <link rel="stylesheet" href="pdf-fill.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -305,8 +305,8 @@
 
           <section id="pdfFillPanel" class="pdf-fill-panel" hidden>
             <h2>Fill in your PDF</h2>
-            <p>Click a highlighted field, or click the page to add text. Move or resize added text to fit.</p>
-            <label class="pdf-fill-options" for="fillFontSize">Added text size <select id="fillFontSize"><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option><option value="18">18</option><option value="24">24</option></select></label>
+            <p>Click any empty space on the form and type. You can move or resize your text, or fill highlighted fields directly.</p>
+            <label class="pdf-fill-options" for="fillFontSize">Text size <select id="fillFontSize"><option value="8">8</option><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option><option value="18">18</option><option value="24">24</option></select></label>
             <button id="downloadFilledPdf" class="primary-button" type="button">Download filled PDF</button>
             <p>You can switch to Sign to add your signature before downloading.</p>
           </section>

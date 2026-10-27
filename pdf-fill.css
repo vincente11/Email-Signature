@@ -33,3 +33,9 @@
 [data-mode="fill"] .pdf-text-resize { display:block; }
 [data-mode="fill"] .pdf-free-text { resize:none; }
 .page-wrap.pdf-filling .signature-stamp { visibility:hidden !important; }
+/* Keep the printed form visible while typing in compact blank spaces. */
+[data-mode="fill"] .pdf-free-text { background:transparent; }
+.pdf-fill-layer[data-mode="fill"] { cursor:text; }
+.pdf-free-text { min-width:12px; }
+.pdf-free-text button { visibility:hidden; }
+.pdf-free-text:hover button,.pdf-free-text:focus-within button { visibility:visible; }

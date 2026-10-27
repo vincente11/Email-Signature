@@ -49,11 +49,8 @@ window.PdfFillEditor = class PdfFillEditor {
     this.available = available;
     document.getElementById("pdfEditModes").hidden = !available;
     if (!available) return;
-    const epoch = this.epoch;
-    const fields = await viewer.getFieldObjects().catch(() => null);
-    if (epoch !== this.epoch) return;
-    const hasFields = Object.values(fields || {}).some((widgets) => widgets.some((field) => !field.readOnly && ["text", "checkbox", "radiobutton", "combobox", "listbox"].includes(field.type)));
-    this.setMode(hasFields ? "fill" : "sign");
+    // Flat/scanned forms have no native widgets: they must still be ready to type.
+    this.setMode("fill");
   }
   setMode(mode) {
     this.mode = mode === "fill" && this.available ? "fill" : "sign";
@@ -152,12 +149,13 @@ window.PdfFillEditor = class PdfFillEditor {
   addText(x, y) {
     if (!this.current) return;
     const { viewport, page } = this.current;
-    const width = Math.min(220 * viewport.scale, viewport.width * .65);
-    const height = Math.min(50 * viewport.scale, viewport.height * .2);
+    const left = Math.max(0, Math.min(x, viewport.width - 25 * viewport.scale));
+    const width = Math.min(140 * viewport.scale, viewport.width - left);
+    const height = Math.min((this.fontSize * 1.25 + 6) * viewport.scale, viewport.height * .2);
     const text = {
-      id: crypto.randomUUID(), pageNumber: page.pageNumber, text: "", fontSize: this.fontSize,
-      left: Math.max(0, Math.min(x, viewport.width - width)) / viewport.width,
-      top: Math.max(0, Math.min(y, viewport.height - height)) / viewport.height,
+      id: crypto.randomUUID(), pageNumber: page.pageNumber, text: "", fontSize: this.fontSize, autoWidth: true,
+      left: left / viewport.width,
+      top: Math.max(0, Math.min(y - height / 2, viewport.height - height)) / viewport.height,
       width: width / viewport.width, height: height / viewport.height,
     };
     this.texts.push(text); this.selectedText = text.id;
@@ -170,7 +168,19 @@ window.PdfFillEditor = class PdfFillEditor {
     Object.assign(box.style, { left: `${text.left * viewport.width}px`, top: `${text.top * viewport.height}px`, width: `${text.width * viewport.width}px`, height: `${text.height * viewport.height}px` });
     const input = document.createElement("textarea"); input.value = text.text; input.placeholder = "Type here"; input.setAttribute("aria-label", "Added text");
     input.style.fontSize = `${text.fontSize * viewport.scale}px`;
-    input.addEventListener("input", () => { text.text = input.value; this.changed(); });
+    const fitWidth = () => {
+      if (!text.autoWidth || !input.value) return;
+      const context = document.createElement("canvas").getContext("2d");
+      context.font = `${text.fontSize * viewport.scale}px PdfNoto`;
+      const measured = Math.max(...input.value.split(/\r?\n/).map((line) => context.measureText(line).width));
+      const width = Math.min(Math.max(16 * viewport.scale, measured + 8 * viewport.scale), viewport.width * (1 - text.left));
+      text.width = width / viewport.width; box.style.width = `${width}px`;
+    };
+    const growHeight = () => {
+      const height = Math.min(Math.max((text.fontSize * 1.25 + 6) * viewport.scale, input.scrollHeight + 2), viewport.height * (1 - text.top));
+      if (height > text.height * viewport.height) { text.height = height / viewport.height; box.style.height = `${height}px`; }
+    };
+    input.addEventListener("input", () => { text.text = input.value; fitWidth(); growHeight(); this.changed(); });
     input.addEventListener("focus", () => { this.selectedText = text.id; document.getElementById("fillFontSize").value = String(text.fontSize); });
     const drag = document.createElement("button"); drag.type = "button"; drag.className = "pdf-text-drag"; drag.textContent = "Move"; drag.setAttribute("aria-label", "Move added text; use arrow keys to adjust");
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "pdf-text-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", "Remove added text");
@@ -193,6 +203,7 @@ window.PdfFillEditor = class PdfFillEditor {
     const resize = document.createElement("button"); resize.type = "button"; resize.className = "pdf-text-resize"; resize.setAttribute("aria-label", "Resize added text; use arrow keys to adjust");
     let resizing;
     const setSize = (width, height) => {
+      text.autoWidth = false;
       text.width = Math.max(25 / viewport.width, Math.min(width, 1 - text.left));
       text.height = Math.max(20 / viewport.height, Math.min(height, 1 - text.top));
       box.style.width = `${text.width * viewport.width}px`; box.style.height = `${text.height * viewport.height}px`; this.changed();
@@ -208,6 +219,8 @@ window.PdfFillEditor = class PdfFillEditor {
       setSize(text.width + dx * step / viewport.width, text.height + dy * step / viewport.height);
     });
     box.append(input, drag, remove, resize); this.layer.append(box);
+    fitWidth();
+    growHeight();
   }
   async getFont(pdf) {
     if (!window.fontkit) throw new Error("Text tools couldn't load. Refresh and try again.");

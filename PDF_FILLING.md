@@ -1,6 +1,6 @@
 # PDF filling
 
-Upload a PDF and choose **Fill PDF**. Standard editable form fields appear as highlighted controls. Forms with supported fields open in Fill mode automatically. On flat PDFs, click the page to add text; move, resize, remove, or change the size of added text using its controls.
+Upload a PDF to start in **Fill PDF** mode, including flat and scanned forms. Standard editable form fields appear as highlighted controls. Click an empty space to type directly; move, resize, remove, or change the size of added text using its controls. Compact text boxes start at the clicked position, including near the right edge of a page.
 
 **Download filled PDF** saves entries without requiring a signature. To include an account signature, switch to **Sign**, place the signature, and use the signed download. Starting a new sign-off request uploads a snapshot containing the filled values and added text.
 
