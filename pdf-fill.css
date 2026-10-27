@@ -1,0 +1,35 @@
+.pdf-edit-modes { display:flex; gap:2px; padding:3px; border:1px solid #e1e7f0; border-radius:7px; margin-right:12px; background:#f6f8fc; }
+.pdf-edit-modes button { border:0; border-radius:4px; padding:6px 10px; background:transparent; color:#7c899f; font-size:10px; cursor:pointer; }
+.pdf-edit-modes button[aria-pressed="true"] { background:#fff; color:#315fea; box-shadow:0 1px 3px #17203112; }
+.pdf-fill-panel { margin:0 0 20px; }
+.pdf-fill-panel h2 { margin:0 0 10px; font-size:13px; font-weight:500; }
+.pdf-fill-panel p { font-size:11px; line-height:1.7; color:#738199; }
+.pdf-fill-options { display:flex; gap:12px; align-items:center; margin:18px 0; font-size:10px; color:#6f7e96; }
+.pdf-fill-options select { border:1px solid #dfe6f1; border-radius:5px; padding:6px 9px; background:#fff; color:#465d83; font:inherit; }
+#downloadFilledPdf { width:100%; font-size:11px; font-weight:500; box-shadow:none !important; }
+.pdf-filling > .signature-heading,.pdf-filling > #signatureAuthHint,.pdf-filling > #signaturePreview,.pdf-filling > .sidebar-bottom { display:none !important; }
+.page-wrap.pdf-filling .signature-stamp { pointer-events:none; }
+.pdf-fill-layer { position:absolute; inset:0; z-index:1; pointer-events:none; }
+.pdf-fill-layer[data-mode="fill"] { pointer-events:auto; cursor:text; }
+.pdf-fill-field { position:absolute; box-sizing:border-box; margin:0; border:1px solid transparent; border-radius:0; padding:1px 2px; background:#fff; color:#182239; font-family:'DM Sans',sans-serif; line-height:1.2; resize:none; outline:none; }
+.pdf-fill-field[type="checkbox"],.pdf-fill-field[type="radio"] { padding:0; accent-color:#315fea; }
+[data-mode="fill"] .pdf-fill-field { border-color:#9db6f0; background:#f1f5ff; cursor:inherit; }
+[data-mode="fill"] .pdf-fill-field:focus { border-color:#315fea; background:#fff; outline:2px solid #315fea33 !important; outline-offset:0; }
+.pdf-free-text { position:absolute; box-sizing:border-box; min-width:25px; min-height:20px; resize:none; background:transparent; border:1px solid transparent; }
+.pdf-free-text textarea { width:100%; height:100%; display:block; margin:0; padding:2px; box-sizing:border-box; border:0; outline:0; background:transparent; color:#182239; font-family:'DM Sans',sans-serif; line-height:1.25; resize:none; }
+.pdf-free-text textarea::placeholder { color:transparent !important; }
+[data-mode="fill"] .pdf-free-text { border-color:#9eb6ee; resize:both; overflow:visible; background:#f8faffb3; }
+[data-mode="fill"] .pdf-free-text textarea::placeholder { color:#8fa2c5 !important; }
+.pdf-text-drag,.pdf-text-remove { display:none; position:absolute; top:-19px; height:18px; padding:1px 5px; border:0; background:#315fea; color:#fff; font-size:9px; cursor:pointer; }
+.pdf-text-drag { left:-1px; border-radius:3px 3px 0 0; touch-action:none; cursor:move; }
+.pdf-text-remove { right:-1px; border-radius:3px 3px 0 0; }
+[data-mode="fill"] .pdf-text-drag,[data-mode="fill"] .pdf-text-remove { display:block; }
+.pdf-free-text:focus-within { border-color:#315fea; }
+.pdf-free-text textarea:focus { box-shadow:none !important; outline:none !important; }
+@media(max-width:650px) { .document-toolbar { flex-wrap:wrap; gap:8px; } .pdf-edit-modes { margin-right:0; } .pdf-edit-modes button { padding:6px 8px; } .pdf-fill-options { margin:12px 0; } }
+@font-face { font-family:PdfNoto; src:url('fonts/NotoSans-Regular.ttf') format('truetype'); font-display:swap; }
+.pdf-fill-field,.pdf-free-text textarea { font-family:PdfNoto,sans-serif; }
+.pdf-text-resize { display:none; position:absolute; bottom:-3px; right:-3px; width:10px; height:10px; padding:0; border:1px solid #fff; border-radius:2px; background:#315fea; cursor:nwse-resize; touch-action:none; }
+[data-mode="fill"] .pdf-text-resize { display:block; }
+[data-mode="fill"] .pdf-free-text { resize:none; }
+.page-wrap.pdf-filling .signature-stamp { visibility:hidden !important; }

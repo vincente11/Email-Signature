@@ -15,6 +15,8 @@
   <script src="excel-import.js?v=excel-native-4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="excel-sign.js?v=excel-native-4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+  <script src="pdf-fill.js?v=1"></script>
   <style>
     :root {
       color-scheme: light;
@@ -240,6 +242,7 @@
   </style>
   <link rel="stylesheet" href="theme.css?v=slate-blue-1">
   <link rel="stylesheet" href="studio.css?v=2">
+  <link rel="stylesheet" href="pdf-fill.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -249,7 +252,7 @@
         <span class="brand-name">EFFICIENT SIGN</span>
       </div>
       <nav class="main-nav" aria-label="Main navigation">
-        <a href="#signingWorkspace" aria-current="page">Sign a document</a>
+        <a href="#signingWorkspace" aria-current="page">Fill &amp; sign</a>
         <a id="collaborationNavLink" href="collaboration.html" aria-label="Collaboration requests" hidden>
           Collaboration requests<span id="requestNotificationBadge" class="nav-notification-badge" aria-hidden="true" hidden></span>
         </a>
@@ -263,7 +266,7 @@
       <section class="intro">
         <div>
 
-          <h1 id="welcomeHeading">Sign a document</h1>
+          <h1 id="welcomeHeading">Fill &amp; sign</h1>
 
         </div>
         <div class="intro-meta"><details class="account-menu"><summary>Account</summary>          <section class="auth-card" aria-labelledby="authHeading">
@@ -300,7 +303,14 @@
           <div style="height: 22px"></div>
           <div class="divider"></div>
 
-          <h2 class="step-heading">Signature</h2>
+          <section id="pdfFillPanel" class="pdf-fill-panel" hidden>
+            <h2>Fill in your PDF</h2>
+            <p>Click a highlighted field, or click the page to add text. Move or resize added text to fit.</p>
+            <label class="pdf-fill-options" for="fillFontSize">Added text size <select id="fillFontSize"><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option><option value="18">18</option><option value="24">24</option></select></label>
+            <button id="downloadFilledPdf" class="primary-button" type="button">Download filled PDF</button>
+            <p>You can switch to Sign to add your signature before downloading.</p>
+          </section>
+          <h2 class="step-heading signature-heading">Signature</h2>
           <p id="signatureAuthHint" class="signature-account-note">Sign in with a saved first and last name to use your account signature.</p>
           <img id="signaturePreview" class="signature-preview" alt="Signature preview">
 
@@ -320,6 +330,7 @@
         <section id="documentArea" class="document-area" aria-label="Document preview">
           <div class="document-toolbar">
             <div class="toolbar-left">
+              <div id="pdfEditModes" class="pdf-edit-modes" role="group" aria-label="PDF editing mode" hidden><button id="pdfFillMode" type="button" aria-pressed="false">Fill PDF</button><button id="pdfSignMode" type="button" aria-pressed="true">Sign</button></div>
               <div class="doc-status"><span id="statusDot" class="status-dot"></span><span id="statusText">No document</span></div>
             </div>
             <div class="toolbar-right">
@@ -344,8 +355,8 @@
               <div class="upload-illustration" aria-hidden="true">
                 <svg width="34" height="34" viewBox="0 0 36 36" fill="none"><path d="M10 4.8h10.5L27 11v18.2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z" fill="white" stroke="#94AE99" stroke-width="1.4"/><path d="M20 5v6h6.5M12.5 17h9m-9 4h9m-9 4h5" stroke="#668874" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5v-4a2 2 0 0 1 2-2h4" stroke="#245C45" stroke-width="1.5" stroke-linecap="round"/></svg>
               </div>
-              <h2>Your document, signed.</h2>
-              <p>Add your signature and download your copy.</p>
+              <h2>Your document, ready.</h2>
+              <p>Fill in, sign, and download your copy.</p>
               <button id="emptyUpload" class="primary-button upload-button" type="button">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 10.5v-7m0 0L5.5 6m2.5-2.5L10.5 6M3.5 10v2.5h9V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Choose a document
@@ -484,6 +495,12 @@
       let toastTimer = null;
       let resizeTimer = null;
       let requestedSigningRequestId = new URLSearchParams(window.location.search).get("request");
+      const pdfFill = new window.PdfFillEditor({
+        pageWrap: els.pageWrap,
+        sidebar: document.querySelector(".sidebar"),
+        showToast,
+        onModeChange: (mode) => { els.statusText.textContent = mode === "fill" ? "Fill in your PDF" : pdfDocument ? "Ready to sign" : "No document"; }
+      });
 
       if (!window.pdfjsLib || !window.PDFLib) {
         showToast("PDF tools couldn't load. Check your internet connection and refresh to try again.");
@@ -573,7 +590,7 @@
         const hasAccountEmail = Boolean(user?.email);
         const signerName = getSignerName(user);
         const hasSignerName = Boolean(signerName);
-        $("welcomeHeading").textContent = "Sign a document";
+        $("welcomeHeading").textContent = "Fill & sign";
         if (userChanged) {
           clearSignatureDraft();
           activeSigningRequest = null;
@@ -862,6 +879,8 @@
         els.startRequestButton.disabled = true;
         setLoading(true, "Creating private sign-off request…");
         try {
+          // Share the filled document, rather than the unedited upload.
+          const requestBytes = await getWorkingPdfBytes();
           const { error: insertError } = await authClient.from("signing_requests").insert({
             id: requestId,
             owner_id: authUser.id,
@@ -875,7 +894,7 @@
 
           const { error: uploadError } = await authClient.storage
             .from("signing-documents")
-            .upload(storagePath, new Blob([originalPdfBytes], { type: "application/pdf" }), {
+            .upload(storagePath, new Blob([requestBytes], { type: "application/pdf" }), {
               contentType: "application/pdf",
               upsert: false
             });
@@ -992,6 +1011,7 @@
           renderTask = null;
         }
         renderGeneration += 1;
+        pdfFill.reset();
         pdfDocument = null;
         originalPdfBytes = null;
         originalExcelBytes = null;
@@ -1093,6 +1113,7 @@
           els.nextPage.disabled = loadedDocument.numPages <= 1;
           els.zoomOut.disabled = false;
           els.zoomIn.disabled = false;
+          await pdfFill.initialise(loadedDocument, !isExcel && !isSharedRequest);
           await renderPage();
           return true;
         } catch (error) {
@@ -1130,6 +1151,8 @@
           const task = page.render({ canvasContext: context, viewport });
           renderTask = task;
           await task.promise;
+          if (generation !== renderGeneration) return;
+          await pdfFill.render(page, viewport);
           if (generation !== renderGeneration) return;
           if (stampPlacement && stampPlacement.pageNumber === currentPageNumber) {
             renderStamp();
@@ -1201,6 +1224,7 @@
       }
 
       function placeStamp(event) {
+        if (pdfFill.mode === "fill") return;
         if (!authUser?.email) {
           showToast("Sign in before placing your account signature.");
           return;
@@ -1424,6 +1448,37 @@
         }
       }
 
+      async function getWorkingPdfBytes() {
+        if (!pdfFill.available || !pdfFill.dirty) return originalPdfBytes.slice();
+        const epoch = pdfFill.epoch, viewer = pdfDocument;
+        const pdf = await window.PDFLib.PDFDocument.load(originalPdfBytes.slice());
+        await pdfFill.applyTo(pdf, viewer);
+        const bytes = await pdf.save({ updateFieldAppearances: false });
+        if (epoch !== pdfFill.epoch || viewer !== pdfDocument) throw new Error("The document changed. Download the newly opened document instead.");
+        return bytes;
+      }
+
+      async function downloadFilledPdf() {
+        if (!pdfFill.available || originalExcelBytes || activeSigningRequest || !pdfDocument) return;
+        const button = $("downloadFilledPdf");
+        button.disabled = true;
+        setLoading(true, "Preparing your filled PDF…");
+        try {
+          const bytes = await getWorkingPdfBytes();
+          const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+          const link = document.createElement("a");
+          link.href = url; link.download = sourceFileName.replace(/\.pdf$/i, "") + "-filled.pdf";
+          document.body.appendChild(link); link.click(); link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("Your filled PDF has been downloaded. Switch to Sign if you also need a signature.");
+        } catch (error) {
+          showToast(error.message || "The filled PDF could not be created. Your entries are still here.");
+          console.error("Filled PDF export failed:", error);
+        } finally { button.disabled = false; setLoading(false); }
+      }
+
+      $("downloadFilledPdf").addEventListener("click", downloadFilledPdf);
+
       async function exportSignedPdf() {
         if (!authUser?.email || stampPlacement?.userId !== authUser.id ||
             stampPlacement?.email !== authUser.email) {
@@ -1449,7 +1504,7 @@
             return;
           }
           const { PDFDocument } = window.PDFLib;
-          const pdf = await PDFDocument.load(originalPdfBytes.slice());
+          const pdf = await PDFDocument.load(await getWorkingPdfBytes());
           const pngBytes = await fetch(signatureDataUrl).then((response) => {
             if (!response.ok) throw new Error("Could not read the signature image.");
             return response.arrayBuffer();
@@ -1521,7 +1576,7 @@
           if (isSharedSigning) {
             showCollaborationError(error, "Your signature could not be submitted.");
           } else {
-            showToast(originalExcelBytes ? (error.message || "The signed Excel workbook could not be created.") : "The signed PDF could not be created. Please try again with another PDF.");
+            showToast(error.message || (originalExcelBytes ? "The signed Excel workbook could not be created." : "The signed PDF could not be created. Your entries are still here."));
             console.error("PDF export failed:", error);
           }
         } finally {
